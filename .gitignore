@@ -1,0 +1,32 @@
+# Dependencies & build
+node_modules/
+dist/
+dist-ssr/
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Local audio & admin tooling (never commit MP3 libraries)
+audio/
+admin/
+_audio_temp/
+
+# Archives
+*.zip
+
+# Logs & editor
+logs/
+*.log
+npm-debug.log*
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+*.local

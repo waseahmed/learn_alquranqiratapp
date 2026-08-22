@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Al Quran Qirat Academy – Qari Voice Practice</title>
+<link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<div class="app">
+<aside class="sidebar">
+<img class="logo" src="assets/images/aqqa-logo.png" alt="Al Quran Qirat Academy">
+
+<div class="menu-title">📖 Practice Library</div>
+
+<button class="menu-btn" onclick="toggleMenu('popularBody','popularChev')"><span>⭐ Popular Surahs</span><span id="popularChev">⌄</span></button>
+<div class="menu-body" id="popularBody"></div>
+
+<button class="menu-btn" onclick="toggleMenu('juzBody','juzChev')"><span>📚 Juz Shortcuts</span><span id="juzChev">›</span></button>
+<div class="menu-body collapsed" id="juzBody"><div class="mini-grid" id="juzGrid"></div></div>
+
+<button class="menu-btn" onclick="toggleMenu('surahBody','surahChev')"><span>☰ Full Quran</span><span id="surahChev">›</span></button>
+<div class="menu-body collapsed" id="surahBody">
+<input class="search" id="surahSearch" placeholder="Search Surah..." oninput="renderSurahList()">
+<div id="surahList"></div>
+</div>
+
+<div class="sidebar-page">
+<button class="item" onclick="showGuide('imitate')">🎓 How to Imitate a Qari</button>
+<button class="item" onclick="showGuide('mistakes')">⚠ Common Mistakes</button>
+</div>
+</aside>
+
+<main class="main">
+<section id="practicePage" class="page show">
+<div class="top">
+<div><h1 id="surahTitle">Surah Al-Fātiḥah</h1><div class="sub" id="ayahTitle">Ayah 1</div></div>
+<div class="top-actions">
+<button class="btn" onclick="prevAyah()">‹ Previous</button>
+<button id="playAllBtn" class="btn primary" onclick="togglePlaySelected()">▶ Play Selected Qaris</button>
+<button class="btn primary" onclick="nextAyah()">Next ›</button>
+</div>
+</div>
+
+<section class="reader">
+<div class="reader-head"><div id="readerLabel">Al-Fātiḥah · 1:1</div><div class="ayah-meta" id="rangeLabel">Full Quran Practice</div></div>
+<div class="arabic" id="ayahText"></div>
+<div class="practice-bar">
+<button class="btn" onclick="replayCurrent()">↻ Replay</button>
+<button class="btn" onclick="slowCurrent()">0.8× Slow</button>
+<button class="btn" onclick="startShadow()">🎯 Shadow Mode</button>
+<button id="recordBtn" class="btn" onclick="toggleRecording()">🎙 Record Yourself</button>
+</div>
+<div id="shadowBox" class="shadow-box"><div><b>Shadow Practice</b> — listen, then copy during the pause.</div><div class="shadow-count" id="shadowCount">Ready</div><button class="btn" onclick="stopShadow()">Stop Shadow</button></div>
+<div id="recordBox" class="recording"><b>Your recording</b><br><audio id="userRecording" controls></audio></div>
+</section>
+
+<div class="qari-toolbar"><h2>Listen & Imitate Different Qaris</h2></div>
+<div class="selector">
+<div class="selector-top"><b>Choose Qaris to Practice</b><div><button class="btn" onclick="selectPreset('clear')">Clear & Easy</button> <button class="btn" onclick="selectPreset('melodic')">Melodic</button> <button class="btn" onclick="selectAllQaris()">All</button></div></div>
+<div class="checks" id="qariChecks"></div>
+</div>
+<div class="cards" id="qariCards"></div>
+
+<div class="range-nav">
+<div><b id="rangeHeading">Ayahs 1–5</b><div class="ayah-tabs" id="ayahTabs"></div></div>
+<div><button class="btn" onclick="prevRange()">‹ Previous 5</button> <button class="btn" onclick="nextRange()">Next 5 ›</button></div>
+</div>
+<div class="footer">Listen → Shadow → Recite → Record → Compare → Improve</div>
+</section>
+
+<section id="imitatePage" class="page guide">
+<h2>🎓 How to Imitate a Qari</h2>
+<div class="guide-card"><div class="rule">1. Listen in very short phrases</div><p>Do not chase the whole āyah at once. Hear a short phrase 2–3 times until you can predict the Qari's rise, fall and pause.</p></div>
+<div class="guide-card"><div class="rule">2. Copy the shape, not the physical voice</div><p>Imitate pitch movement, rhythm, pauses and emotional flow. Do not strain the throat trying to sound physically identical to the reciter.</p></div>
+<div class="guide-card"><div class="rule">3. Shadow immediately</div><p>Play the phrase and repeat almost immediately after it. The shorter the delay, the easier it is for the ear to retain the sound.</p></div>
+<div class="guide-card"><div class="rule">4. Slow down when necessary</div><p>Use 0.8× while learning a difficult phrase, then return to normal speed so the child learns the natural flow.</p></div>
+<div class="guide-card"><div class="rule">5. Record and A/B compare</div><p>Qari → child → Qari → child. Ask the child to identify where their pitch, pause or rhythm changed.</p></div>
+<div class="guide-card"><div class="rule">Golden Rule</div><p><b>Correct recitation first → beautiful voice second.</b> Melody must never change a letter, madd, ghunnah, waqf or Tajweed rule.</p></div>
+<button class="btn primary" onclick="showPractice()">Back to Practice</button>
+</section>
+
+<section id="mistakesPage" class="page guide">
+<h2>⚠ Common Mistakes & How to Correct Them</h2>
+<div id="mistakeCards"></div>
+<button class="btn primary" onclick="showPractice()">Back to Practice</button>
+</section>
+</main>
+</div>
+<script src="data/quran-data.js"></script>
+<script src="assets/js/app.js"></script>
+</body></html>
