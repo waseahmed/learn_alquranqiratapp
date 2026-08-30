@@ -1,5 +1,5 @@
 import { Navigate, useOutletContext } from 'react-router-dom'
-import PracticePageView from './PracticePageView'
+import PracticePageView from './PracticePageView.jsx'
 
 export default function PracticePage() {
   const ctx = useOutletContext()

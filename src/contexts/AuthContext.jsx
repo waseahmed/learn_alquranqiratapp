@@ -14,7 +14,7 @@ async function fetchProfile(userId) {
   if (!supabase) return null
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, display_name, role, active')
+    .select('id, display_name, role, active, avatar_url')
     .eq('id', userId)
     .maybeSingle()
 
@@ -29,6 +29,16 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
+
+  const refreshProfile = useCallback(async () => {
+    if (!user?.id) {
+      setProfile(null)
+      return null
+    }
+    const p = await fetchProfile(user.id)
+    setProfile(p)
+    return p
+  }, [user?.id])
 
   useEffect(() => {
     let mounted = true
@@ -107,6 +117,7 @@ export function AuthProvider({ children }) {
     user?.user_metadata?.display_name ||
     user?.email ||
     ''
+  const avatarUrl = profile?.avatar_url || null
 
   const value = useMemo(
     () => ({
@@ -114,12 +125,14 @@ export function AuthProvider({ children }) {
       profile,
       role,
       displayName,
+      avatarUrl,
       loading,
       supabaseConfigured,
       signIn,
       signOut,
+      refreshProfile,
     }),
-    [user, profile, role, displayName, loading, signIn, signOut],
+    [user, profile, role, displayName, avatarUrl, loading, signIn, signOut, refreshProfile],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

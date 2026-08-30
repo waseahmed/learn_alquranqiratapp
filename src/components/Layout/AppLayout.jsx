@@ -36,6 +36,7 @@ export default function AppLayout() {
     <div className="app">
       <Sidebar
         currentSurah={surah}
+        currentAyah={ayah}
         onSelectSurah={(n, a = 1) => navigateTo(n, a)}
         onSelectJuz={selectJuz}
         mobileOpen={mobileOpen}

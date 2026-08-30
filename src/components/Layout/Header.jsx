@@ -1,7 +1,8 @@
-import { useAuth } from '../../contexts/AuthContext'
+import { useNavigate } from 'react-router-dom'
+import UserMenu from './UserMenu'
 
 export default function Header({ title, subtitle, onMenuToggle }) {
-  const { displayName, signOut } = useAuth()
+  const navigate = useNavigate()
 
   return (
     <header className="top">
@@ -16,19 +17,24 @@ export default function Header({ title, subtitle, onMenuToggle }) {
             ☰ Menu
           </button>
         )}
-        <div>
-          <h1 id="page-title">{title}</h1>
-          {subtitle && <div className="sub">{subtitle}</div>}
-        </div>
-      </div>
-      <div className="user-area">
-        <span className="welcome">
-          Welcome, {displayName || 'Student'}
-        </span>
-        <button type="button" className="btn" onClick={() => signOut()}>
-          Logout
+        <button
+          type="button"
+          className="header-home"
+          onClick={() => navigate('/practice')}
+          aria-label="Go to home"
+        >
+          <img
+            className="header-logo"
+            src={`${import.meta.env.BASE_URL}aqqa-logo.png`}
+            alt=""
+          />
+          <div>
+            <h1 id="page-title">{title}</h1>
+            {subtitle && <div className="sub">{subtitle}</div>}
+          </div>
         </button>
       </div>
+      <UserMenu />
     </header>
   )
 }

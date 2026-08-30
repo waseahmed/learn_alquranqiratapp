@@ -12,17 +12,12 @@ import {
 } from '../data/qaris'
 import { useAudioPlayer } from '../hooks/useAudioPlayer'
 import { useRecorder } from '../hooks/useRecorder'
+import { useProfile } from '../contexts/ProfileContext'
 import {
   saveLastPosition,
   saveSelectedQaris,
   loadSelectedQaris,
 } from '../services/preferences'
-
-function computeRange(ayah, versesCount) {
-  const rangeStart = Math.floor((ayah - 1) / 5) * 5 + 1
-  const rangeEnd = Math.min(rangeStart + 4, versesCount)
-  return { rangeStart, rangeEnd }
-}
 
 export default function PracticePageView({
   surah,
@@ -31,9 +26,19 @@ export default function PracticePageView({
   onNavigate,
   onMenuToggle,
 }) {
+  const {
+    qariOrder,
+    setQariOrder,
+    sidebar,
+    setSidebar,
+    toggleAyahBookmark,
+    toggleSurahBookmark,
+    isAyahBookmarked,
+    isSurahBookmarked,
+  } = useProfile()
+
   const currentSurah = surahs[String(surah)]
   const versesCount = currentSurah.verses_count
-  const { rangeStart, rangeEnd } = computeRange(ayah, versesCount)
   const arabic = currentSurah.ayahs[String(ayah)]
 
   const availableQaris = useMemo(() => getQarisForSurah(surah), [surah])
@@ -46,15 +51,21 @@ export default function PracticePageView({
     const saved = loadSelectedQaris(DEFAULT_SELECTED_QARIS)
     return new Set(saved)
   })
+  const [hydratedFromProfile, setHydratedFromProfile] = useState(false)
+  const [loopCounts, setLoopCounts] = useState({})
+  /** Selected slow speed: null = normal 1×; 0.8 or 0.5 when toggled on */
+  const [slowRate, setSlowRate] = useState(null)
 
   const {
     currentlyPlayingQari,
+    playbackRate,
     isPlayingSequence,
     isUnavailable,
     markUnavailable,
     playOnce,
+    playRepeats,
     playSequence,
-    setPlayingQari,
+    registerAudio,
     stop: stopAudio,
   } = useAudioPlayer()
 
@@ -66,6 +77,13 @@ export default function PracticePageView({
   useEffect(() => {
     saveLastPosition(surah, ayah)
   }, [surah, ayah])
+
+  useEffect(() => {
+    if (hydratedFromProfile) return
+    if (!qariOrder?.length) return
+    setSelectedQaris(new Set(qariOrder))
+    setHydratedFromProfile(true)
+  }, [qariOrder, hydratedFromProfile])
 
   useEffect(() => {
     setSelectedQaris((prev) => {
@@ -81,10 +99,24 @@ export default function PracticePageView({
     saveSelectedQaris(selectedQaris)
   }, [selectedQaris])
 
-  const selectedList = useMemo(
-    () => availableQaris.filter((q) => selectedQaris.has(q.key)),
-    [availableQaris, selectedQaris],
-  )
+  useEffect(() => {
+    const active = document.querySelector('.ayah-index-grid .ayah-tab.active')
+    active?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+  }, [surah, ayah])
+
+  const selectedList = useMemo(() => {
+    const byKey = new Map(availableQaris.map((q) => [q.key, q]))
+    const ordered = []
+    for (const key of qariOrder) {
+      if (selectedQaris.has(key) && byKey.has(key)) ordered.push(byKey.get(key))
+    }
+    for (const q of availableQaris) {
+      if (selectedQaris.has(q.key) && !ordered.some((x) => x.key === q.key)) {
+        ordered.push(q)
+      }
+    }
+    return ordered
+  }, [availableQaris, selectedQaris, qariOrder])
 
   const primaryQariKey = selectedList[0]?.key || availableQaris[0]?.key
 
@@ -100,44 +132,70 @@ export default function PracticePageView({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [surah, ayah])
 
+  function persistOrder(nextSet) {
+    const kept = qariOrder.filter((k) => nextSet.has(k))
+    const added = [...nextSet].filter((k) => !kept.includes(k))
+    setQariOrder([...kept, ...added])
+  }
+
   function toggleQari(key) {
     setSelectedQaris((prev) => {
       const next = new Set(prev)
       if (next.has(key)) next.delete(key)
       else next.add(key)
+      persistOrder(next)
       return next
     })
   }
 
   function selectPreset(keys) {
-    setSelectedQaris(new Set(keys.filter((k) => availableKeys.has(k))))
+    const next = new Set(keys.filter((k) => availableKeys.has(k)))
+    setSelectedQaris(next)
+    setQariOrder([...next])
   }
 
   function selectAll() {
-    setSelectedQaris(new Set(availableQaris.map((q) => q.key)))
+    const next = new Set(availableQaris.map((q) => q.key))
+    setSelectedQaris(next)
+    const ordered = [
+      ...qariOrder.filter((k) => next.has(k)),
+      ...[...next].filter((k) => !qariOrder.includes(k)),
+    ]
+    setQariOrder(ordered)
   }
+
+  const playRate = slowRate || 1
 
   async function handlePlaySelected() {
     if (isPlayingSequence || shadowActive) {
       stopEverything()
       return
     }
-    const keys = availableQaris
-      .filter((q) => selectedQaris.has(q.key))
-      .map((q) => q.key)
-    await playSequence(keys, surah, ayah)
+    await playSequence(
+      selectedList.map((q) => q.key),
+      surah,
+      ayah,
+      { ...loopCounts },
+      playRate,
+    )
   }
 
   async function handleReplay(key = primaryQariKey) {
     if (!key || isUnavailable(key, surah, ayah)) return
     stopEverything()
-    await playOnce(key, surah, ayah, 1)
+    await playRepeats(key, surah, ayah, playRate, loopCounts[key] || 1)
   }
 
-  async function handleSlow(key = primaryQariKey) {
+  async function handleSlowToggle(key = primaryQariKey, rate = 0.8) {
     if (!key || isUnavailable(key, surah, ayah)) return
+    if (slowRate != null && Math.abs(slowRate - rate) < 0.01) {
+      setSlowRate(null)
+      stopEverything()
+      return
+    }
+    setSlowRate(rate)
     stopEverything()
-    await playOnce(key, surah, ayah, 0.8)
+    await playRepeats(key, surah, ayah, rate, loopCounts[key] || 1)
   }
 
   async function runShadow(key) {
@@ -149,6 +207,7 @@ export default function PracticePageView({
 
     while (!shadowStopRef.current) {
       setShadowLabel('Listen')
+      // playOnce clears the stop flag from stopEverything() so Listen can start
       const result = await playOnce(key, surah, ayah, 1)
       if (shadowStopRef.current || result.reason === 'stopped' || !result.ok) break
 
@@ -178,18 +237,19 @@ export default function PracticePageView({
     else if (surah < 114) onNavigate(surah + 1, 1)
   }
 
-  function prevRange() {
-    const start = Math.max(1, rangeStart - 5)
-    onNavigate(surah, start)
-  }
-
-  function nextRange() {
-    if (rangeEnd >= versesCount) return
-    onNavigate(surah, rangeStart + 5)
-  }
-
   const playBtnStop = isPlayingSequence || shadowActive
-  const playBtnLabel = playBtnStop ? '■ Stop' : '▶ Play Selected Qaris'
+  const ayahStarred = isAyahBookmarked(surah, ayah)
+  const surahStarred = isSurahBookmarked(surah)
+  const showAyahSection = sidebar?.showAyahSection !== false
+  const showAyahIndex = sidebar?.showAyahIndex !== false
+
+  function toggleAyahSection() {
+    setSidebar({ ...(sidebar || {}), showAyahSection: !showAyahSection })
+  }
+
+  function toggleAyahIndex() {
+    setSidebar({ ...(sidebar || {}), showAyahIndex: !showAyahIndex })
+  }
 
   return (
     <div className="practice-page">
@@ -199,61 +259,144 @@ export default function PracticePageView({
         onMenuToggle={onMenuToggle}
       />
 
-      <div className="top-actions-row">
-        <button type="button" className="btn" onClick={prevAyah}>
-          ‹ Previous
-        </button>
-        <button
-          type="button"
-          className={`btn ${playBtnStop ? 'stop' : 'primary'}`}
-          onClick={handlePlaySelected}
-        >
-          {playBtnLabel}
-        </button>
-        <button type="button" className="btn primary" onClick={nextAyah}>
-          Next ›
-        </button>
-      </div>
-
-      <section className="reader">
-        <div className="reader-head">
-          <div>
-            {currentSurah.name_en} · {surah}:{ayah}
-          </div>
-          <div className="ayah-meta">
-            {rangeNote || `${currentSurah.name_ar} · ${versesCount} āyāt`}
-          </div>
-        </div>
-        <div className="arabic" dir="rtl" lang="ar">
-          {arabic}
-        </div>
-
-        <PracticeControls
-          onReplay={() => handleReplay()}
-          onSlow={() => handleSlow()}
-          onStartShadow={() => runShadow(primaryQariKey)}
-          onToggleRecord={recorder.toggle}
-          isRecording={recorder.isRecording}
-          disableAudioActions={
-            !primaryQariKey || isUnavailable(primaryQariKey, surah, ayah)
-          }
-        />
-
-        <ShadowMode
-          active={shadowActive}
-          countLabel={shadowLabel}
-          onStop={stopEverything}
-        />
-
-        <RecordingPanel
-          recordingUrl={recorder.recordingUrl}
-          error={recorder.error}
-        />
-      </section>
-
       <div className="qari-toolbar">
         <h2>Listen &amp; Imitate Different Qaris</h2>
       </div>
+
+      <div className="practice-control-bar" role="toolbar" aria-label="Practice controls">
+        <div className="control-group" aria-label="Move between ayahs">
+          <span className="control-group-label">Ayah</span>
+          <button type="button" className="btn" onClick={prevAyah} title="Go to previous ayah">
+            ‹ Prev
+          </button>
+          <span className="ayah-position" aria-live="polite">
+            {surah}:{ayah}
+          </span>
+          <button type="button" className="btn" onClick={nextAyah} title="Go to next ayah">
+            Next ›
+          </button>
+        </div>
+
+        <div className="control-group control-group-play" aria-label="Play recitations">
+          <button
+            type="button"
+            className={`btn play-selected-btn ${playBtnStop ? 'stop' : 'primary'}`}
+            onClick={handlePlaySelected}
+            title={
+              playBtnStop
+                ? 'Stop playback'
+                : 'Play your selected qaris one after another for this ayah'
+            }
+          >
+            {playBtnStop ? '■ Stop listening' : '▶ Play selected qaris'}
+          </button>
+        </div>
+
+        <div className="control-group control-group-secondary" aria-label="Favourites and display">
+          <button
+            type="button"
+            className={`btn ${ayahStarred ? 'primary' : ''}`}
+            aria-pressed={ayahStarred}
+            onClick={() => toggleAyahBookmark(surah, ayah)}
+            title="Favourite this ayah"
+          >
+            {ayahStarred ? '★ Fav ayah' : '☆ Fav ayah'}
+          </button>
+          <button
+            type="button"
+            className={`btn ${surahStarred ? 'primary' : ''}`}
+            aria-pressed={surahStarred}
+            onClick={() => toggleSurahBookmark(surah)}
+            title="Favourite this surah"
+          >
+            {surahStarred ? '★ Fav surah' : '☆ Fav surah'}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            aria-pressed={!showAyahSection}
+            onClick={toggleAyahSection}
+            title={showAyahSection ? 'Hide Arabic ayah text' : 'Show Arabic ayah text'}
+          >
+            {showAyahSection ? 'Hide text' : 'Show text'}
+          </button>
+          <button
+            type="button"
+            className="btn"
+            aria-pressed={!showAyahIndex}
+            onClick={toggleAyahIndex}
+            title={showAyahIndex ? 'Hide ayah index' : 'Show ayah index'}
+          >
+            {showAyahIndex ? 'Hide index' : 'Show index'}
+          </button>
+        </div>
+      </div>
+
+      {showAyahSection && (
+        <section className="reader">
+          <div className="reader-head">
+            <div>
+              {currentSurah.name_en} · {surah}:{ayah}
+            </div>
+            <div className="ayah-meta">
+              {rangeNote || `${currentSurah.name_ar} · ${versesCount} āyāt`}
+            </div>
+          </div>
+          <div className="arabic" dir="rtl" lang="ar">
+            {arabic}
+          </div>
+
+          <PracticeControls
+            onReplay={() => handleReplay()}
+            onSlowToggle={(rate) => handleSlowToggle(primaryQariKey, rate)}
+            onStartShadow={() => runShadow(primaryQariKey)}
+            onToggleRecord={recorder.toggle}
+            isRecording={recorder.isRecording}
+            slowRate={slowRate}
+            disableAudioActions={
+              !primaryQariKey || isUnavailable(primaryQariKey, surah, ayah)
+            }
+          />
+
+          <ShadowMode
+            active={shadowActive}
+            countLabel={shadowLabel}
+            onStop={stopEverything}
+          />
+
+          <RecordingPanel
+            recordingUrl={recorder.recordingUrl}
+            error={recorder.error}
+          />
+        </section>
+      )}
+
+      {showAyahIndex && (
+        <div className="ayah-index" aria-label={`Ayah index for ${currentSurah.name_en}`}>
+          <div className="ayah-index-head">
+            <b>Ayah index</b>
+            <span>
+              Surah {surah} · {currentSurah.name_en} · {versesCount} āyāt · now {surah}:{ayah}
+            </span>
+          </div>
+          <div className="ayah-index-grid">
+            {Array.from({ length: versesCount }, (_, i) => {
+              const n = i + 1
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  className={`ayah-tab ${n === ayah ? 'active' : ''}`}
+                  onClick={() => onNavigate(surah, n)}
+                  aria-current={n === ayah ? 'true' : undefined}
+                >
+                  {n}
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <QariSelector
         availableQaris={availableQaris}
@@ -271,45 +414,20 @@ export default function PracticePageView({
             surah={surah}
             ayah={ayah}
             isPlaying={currentlyPlayingQari === q.key}
+            playbackRate={currentlyPlayingQari === q.key ? playbackRate : null}
+            slowRate={slowRate}
             unavailable={isUnavailable(q.key, surah, ayah)}
+            loopCount={loopCounts[q.key] || 1}
+            onLoopChange={(key, next) =>
+              setLoopCounts((prev) => ({ ...prev, [key]: next }))
+            }
             onReplay={handleReplay}
-            onSlow={handleSlow}
+            onSlowToggle={handleSlowToggle}
             onShadow={runShadow}
             onAudioError={(key) => markUnavailable(key, surah, ayah)}
-            onNativePlay={(key) => setPlayingQari(key)}
+            registerAudio={registerAudio}
           />
         ))}
-      </div>
-
-      <div className="range-nav">
-        <div>
-          <b>
-            Ayahs {rangeStart}–{rangeEnd}
-          </b>
-          <div className="ayah-tabs">
-            {Array.from({ length: rangeEnd - rangeStart + 1 }, (_, i) => {
-              const n = rangeStart + i
-              return (
-                <button
-                  key={n}
-                  type="button"
-                  className={`ayah-tab ${n === ayah ? 'active' : ''}`}
-                  onClick={() => onNavigate(surah, n)}
-                >
-                  {n}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-        <div>
-          <button type="button" className="btn" onClick={prevRange}>
-            ‹ Previous 5
-          </button>{' '}
-          <button type="button" className="btn" onClick={nextRange}>
-            Next 5 ›
-          </button>
-        </div>
       </div>
 
       <div className="footer">

@@ -150,17 +150,30 @@ Do not treat localStorage or query params as security state.
 
 ## Audio
 
-Remote URL helper:
+Audio base URL is controlled by:
 
 ```text
-https://audio.alquranqiratacademy.com/recitations/{qari}/{surah}/{surah}{ayah}.mp3
+VITE_AUDIO_BASE_URL
 ```
 
-Examples:
+| Environment | Typical value |
+|---|---|
+| Local Vite (`npm run dev`) | `/audio/recitations` → serves project folder `./audio/recitations` |
+| Production (GitHub Pages) | `https://audio.alquranqiratacademy.com/recitations` |
+
+If unset: **DEV** defaults to local `/audio/recitations`, **production build** defaults to the remote host.
+
+Local file example:
+
+```text
+./audio/recitations/mishary/001/001001.mp3
+→ http://localhost:5173/audio/recitations/mishary/001/001001.mp3
+```
+
+Remote URL example:
 
 ```text
 https://audio.alquranqiratacademy.com/recitations/mishary/001/001001.mp3
-https://audio.alquranqiratacademy.com/recitations/shuraim/036/036012.mp3
 ```
 
 Surah and ayah are zero-padded to three digits.
@@ -175,7 +188,28 @@ Admin download/verify scripts remain under `admin/` for populating the BigRock a
 
 ---
 
-## Features
+## Student profile
+
+Route: `/#/profile`
+
+Features saved per user in Supabase:
+
+- Display name + avatar photo (`avatars` storage bucket)
+- Preferred Qari list **and order** (`user_preferences.qari_order`)
+- Theme colors (`user_preferences.theme`)
+- Bookmarks for favorite Surahs / Ayahs (`bookmarks`)
+
+**Qari catalog** stays in the React app (`src/data/qaris.js`). Only the user’s selected keys + order are stored in the database.
+
+Run after `schema.sql`:
+
+```text
+supabase/student_profile.sql
+```
+
+Then create a **public** Storage bucket named `avatars` in the Supabase dashboard (if the SQL insert is skipped).
+
+---
 
 - Full Quran navigation (114 Surahs / 6,236 ayahs, local Uthmani text)
 - Popular Surah + Juz shortcuts

@@ -5,8 +5,9 @@ export function pad3(n) {
 }
 
 /**
- * Build remote ayah audio URL.
- * Example: .../recitations/mishary/001/001001.mp3
+ * Build ayah audio URL from AUDIO_BASE_URL (local or remote).
+ * Example local:  /audio/recitations/mishary/001/001001.mp3
+ * Example remote: https://audio.alquranqiratacademy.com/recitations/mishary/001/001001.mp3
  */
 export function getAyahAudioUrl(qariKey, surahNumber, ayahNumber) {
   const surah = pad3(surahNumber)
