@@ -32,11 +32,21 @@ jobs:
 
       - name: Build
         env:
+          # Secrets / project keys from repo Variables (override .env.production)
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          # Optional repo variable; falls back to remote audio host in app config
+          # Optional override; otherwise .env.production supplies remote audio URL
           VITE_AUDIO_BASE_URL: ${{ vars.VITE_AUDIO_BASE_URL }}
-        run: npm run build
+        run: |
+          if [ -z "$VITE_SUPABASE_URL" ] || [ -z "$VITE_SUPABASE_PUBLISHABLE_KEY" ]; then
+            echo "::error::Missing Supabase env. Add repository Variables: VITE_SUPABASE_URL and VITE_SUPABASE_PUBLISHABLE_KEY (Settings → Secrets and variables → Actions → Variables)."
+            exit 1
+          fi
+          # Empty optional var would override .env.production — unset so the file wins
+          if [ -z "$VITE_AUDIO_BASE_URL" ]; then
+            unset VITE_AUDIO_BASE_URL
+          fi
+          npm run build
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

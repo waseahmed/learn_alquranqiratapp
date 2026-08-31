@@ -21,15 +21,12 @@ MP3 files are **not** stored in this GitHub repository.
 
 ```bash
 npm install
+cp .env.example .env.local   # then fill Supabase keys
 npm run dev
 ```
 
-Copy `.env.example` to `.env` and fill in:
-
-```text
-VITE_SUPABASE_URL=https://YOUR_PROJECT.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=your_publishable_key
-```
+Vite uses **`.env.development`** automatically (`VITE_AUDIO_BASE_URL=/audio/recitations`).
+Put Supabase keys in **`.env.local`** (gitignored) so they work for both dev and local production builds.
 
 Open the Vite URL (usually `http://localhost:5173`).
 
@@ -51,6 +48,8 @@ npm run build
 npm run preview
 ```
 
+Uses **`.env.production`** (remote audio URL). Supabase keys still come from `.env.local` on your machine, or from GitHub Actions Variables on deploy.
+
 The production output is written to `dist/`.
 
 Vite `base` is set to `/` because the custom domain serves the site at the domain root.
@@ -59,10 +58,18 @@ Vite `base` is set to `/` because the custom domain serves the site at the domai
 
 ## Environment Variables
 
-| Variable | Where | Purpose |
-|---|---|---|
-| `VITE_SUPABASE_URL` | `.env` / GitHub repo Variables | Supabase project URL |
-| `VITE_SUPABASE_PUBLISHABLE_KEY` | `.env` / GitHub repo Variables | Browser-safe Supabase key |
+| File | Committed? | Used when | Typical contents |
+|---|---|---|---|
+| `.env.development` | Yes | `npm run dev` | Local audio path |
+| `.env.production` | Yes | `npm run build` / Pages | Live audio URL |
+| `.env.local` | No | All local modes | `VITE_SUPABASE_*` keys |
+| `.env.example` | Yes | Docs only | Placeholders |
+
+| Variable | Local | Live (GitHub Actions) | Purpose |
+|---|---|---|---|
+| `VITE_SUPABASE_URL` | `.env.local` | Repo Variable | Supabase project URL |
+| `VITE_SUPABASE_PUBLISHABLE_KEY` | `.env.local` | Repo Variable | Browser-safe Supabase key |
+| `VITE_AUDIO_BASE_URL` | `.env.development` | `.env.production` (+ optional Variable) | MP3 base URL |
 
 Never put these in the frontend or GitHub Pages deployment:
 

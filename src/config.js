@@ -1,14 +1,14 @@
 /**
  * Audio base URL (no trailing slash).
  *
- * Local / Vite dev (default when VITE_AUDIO_BASE_URL is unset in DEV):
- *   /audio/recitations
- *   → served from project folder ./audio/recitations/...
+ * Set via env files / CI (no trailing slash):
+ *   .env.development → /audio/recitations          (npm run dev)
+ *   .env.production  → https://audio.../recitations (npm run build / Pages)
+ *   VITE_AUDIO_BASE_URL override anytime
  *
- * Production / remote:
- *   https://audio.alquranqiratacademy.com/recitations
- *
- * Override anytime with VITE_AUDIO_BASE_URL in .env
+ * Fallbacks if unset:
+ *   DEV  → /audio/recitations
+ *   PROD → https://audio.alquranqiratacademy.com/recitations
  */
 const DEFAULT_REMOTE_AUDIO =
   'https://audio.alquranqiratacademy.com/recitations'
