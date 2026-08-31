@@ -186,6 +186,16 @@ export default function PracticePageView({
     await playRepeats(key, surah, ayah, playRate, loopCounts[key] || 1)
   }
 
+  async function handlePlayToggle(key) {
+    if (!key || isUnavailable(key, surah, ayah)) return
+    if (currentlyPlayingQari === key) {
+      stopEverything()
+      return
+    }
+    stopEverything()
+    await playRepeats(key, surah, ayah, playRate, loopCounts[key] || 1)
+  }
+
   async function handleSlowToggle(key = primaryQariKey, rate = 0.8) {
     if (!key || isUnavailable(key, surah, ayah)) return
     if (slowRate != null && Math.abs(slowRate - rate) < 0.01) {
@@ -254,41 +264,26 @@ export default function PracticePageView({
   return (
     <div className="practice-page">
       <Header
-        title={`Surah ${currentSurah.name_en}`}
-        subtitle={`Ayah ${ayah}`}
+        title="Listen & Imitate Different Qaris"
+        subtitle="Qirat practice"
         onMenuToggle={onMenuToggle}
       />
 
-      <div className="qari-toolbar">
-        <h2>Listen &amp; Imitate Different Qaris</h2>
-      </div>
-
       <div className="practice-control-bar" role="toolbar" aria-label="Practice controls">
-        <div className="control-group" aria-label="Move between ayahs">
-          <span className="control-group-label">Ayah</span>
+        <div className="control-group control-group-nav" aria-label="Surah and ayah">
+          <div className="surah-context">
+            <span className="surah-context-num">Surah {surah}</span>
+            <span className="surah-context-name">{currentSurah.name_en}</span>
+          </div>
+          <span className="control-group-divider" aria-hidden="true" />
           <button type="button" className="btn" onClick={prevAyah} title="Go to previous ayah">
             ‹ Prev
           </button>
           <span className="ayah-position" aria-live="polite">
-            {surah}:{ayah}
+            Ayah {ayah}
           </span>
           <button type="button" className="btn" onClick={nextAyah} title="Go to next ayah">
             Next ›
-          </button>
-        </div>
-
-        <div className="control-group control-group-play" aria-label="Play recitations">
-          <button
-            type="button"
-            className={`btn play-selected-btn ${playBtnStop ? 'stop' : 'primary'}`}
-            onClick={handlePlaySelected}
-            title={
-              playBtnStop
-                ? 'Stop playback'
-                : 'Play your selected qaris one after another for this ayah'
-            }
-          >
-            {playBtnStop ? '■ Stop listening' : '▶ Play selected qaris'}
           </button>
         </div>
 
@@ -335,11 +330,9 @@ export default function PracticePageView({
       {showAyahSection && (
         <section className="reader">
           <div className="reader-head">
-            <div>
-              {currentSurah.name_en} · {surah}:{ayah}
-            </div>
+            <div className="reader-head-title">{currentSurah.name_ar}</div>
             <div className="ayah-meta">
-              {rangeNote || `${currentSurah.name_ar} · ${versesCount} āyāt`}
+              {rangeNote || `${versesCount} āyāt · ${surah}:${ayah}`}
             </div>
           </div>
           <div className="arabic" dir="rtl" lang="ar">
@@ -404,6 +397,8 @@ export default function PracticePageView({
         onToggle={toggleQari}
         onSelectPreset={selectPreset}
         onSelectAll={selectAll}
+        onPlayAll={handlePlaySelected}
+        isPlayingAll={playBtnStop}
       />
 
       <div className="cards">
@@ -422,6 +417,7 @@ export default function PracticePageView({
               setLoopCounts((prev) => ({ ...prev, [key]: next }))
             }
             onReplay={handleReplay}
+            onPlayToggle={handlePlayToggle}
             onSlowToggle={handleSlowToggle}
             onShadow={runShadow}
             onAudioError={(key) => markUnavailable(key, surah, ayah)}

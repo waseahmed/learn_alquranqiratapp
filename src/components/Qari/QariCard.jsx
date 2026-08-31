@@ -31,6 +31,7 @@ export default function QariCard({
   loopCount = 1,
   onLoopChange,
   onReplay,
+  onPlayToggle,
   onSlowToggle,
   onShadow,
   onAudioError,
@@ -99,13 +100,8 @@ export default function QariCard({
   }
 
   function togglePlay() {
-    const el = audioRef.current
-    if (!el || unavailable) return
-    if (el.paused) {
-      el.play().catch(() => onAudioError(qari.key))
-    } else {
-      el.pause()
-    }
+    if (unavailable) return
+    onPlayToggle?.(qari.key)
   }
 
   function seek(event) {
@@ -146,14 +142,14 @@ export default function QariCard({
           </div>
         ) : (
           <>
-            <div className={`qari-player ${!paused ? 'on' : ''}`}>
+            <div className={`qari-player ${isPlaying || !paused ? 'on' : ''}`}>
               <button
                 type="button"
                 className="qari-player-toggle"
                 onClick={togglePlay}
-                aria-label={paused ? 'Play' : 'Pause'}
+                aria-label={isPlaying ? 'Pause' : 'Play'}
               >
-                {paused ? '▶' : '❚❚'}
+                {isPlaying ? '❚❚' : '▶'}
               </button>
               <button
                 type="button"

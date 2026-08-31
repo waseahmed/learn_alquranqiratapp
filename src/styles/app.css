@@ -145,12 +145,6 @@ a:focus-visible {
   flex-wrap: wrap;
 }
 
-.control-group-play {
-  padding: 0 10px;
-  border-left: 1px solid var(--line);
-  border-right: 1px solid var(--line);
-}
-
 .control-group-secondary {
   margin-left: auto;
 }
@@ -165,8 +159,47 @@ a:focus-visible {
   margin-right: 2px;
 }
 
+.control-group-nav {
+  flex-wrap: wrap;
+}
+
+.surah-context {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding-right: 4px;
+}
+
+.surah-context-num {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.surah-context-name {
+  font: 700 15px Georgia, serif;
+  color: var(--green);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 12rem;
+}
+
+.control-group-divider {
+  width: 1px;
+  align-self: stretch;
+  min-height: 28px;
+  background: var(--line);
+  margin: 0 4px;
+}
+
 .ayah-position {
-  min-width: 3.4rem;
+  min-width: 4.2rem;
   text-align: center;
   font-weight: 700;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -174,19 +207,22 @@ a:focus-visible {
   font-size: 14px;
 }
 
-.play-selected-btn {
+.reader-head-title {
+  font: 700 18px 'Traditional Arabic', 'Noto Naskh Arabic', Amiri, serif;
+  color: var(--green);
+}
+
+.play-all-btn {
   font-weight: 700;
-  padding: 10px 14px;
+  padding: 8px 12px;
 }
 
 @media (max-width: 820px) {
-  .control-group-play {
-    border: 0;
-    padding: 0;
-    width: 100%;
+  .surah-context-name {
+    max-width: 9rem;
   }
 
-  .control-group-play .play-selected-btn {
+  .control-group-nav {
     width: 100%;
   }
 

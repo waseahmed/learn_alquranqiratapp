@@ -9,12 +9,26 @@ export default function QariSelector({
   onToggle,
   onSelectPreset,
   onSelectAll,
+  onPlayAll,
+  isPlayingAll,
 }) {
   return (
     <div className="selector">
       <div className="selector-top">
         <b>Choose Qaris to Practice</b>
         <div className="preset-btns">
+          <button
+            type="button"
+            className={`btn play-all-btn ${isPlayingAll ? 'stop' : 'primary'}`}
+            onClick={onPlayAll}
+            title={
+              isPlayingAll
+                ? 'Stop playback'
+                : 'Play all selected qaris one after another for this ayah'
+            }
+          >
+            {isPlayingAll ? '■ Stop' : '▶ Play All'}
+          </button>
           <button type="button" className="btn" onClick={() => onSelectPreset(CLEAR_EASY_PRESET)}>
             Clear &amp; Easy
           </button>
