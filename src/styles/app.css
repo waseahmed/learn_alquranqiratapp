@@ -1256,13 +1256,15 @@ a.btn.primary {
   }
 
   .header-logo-btn {
-    flex-shrink: 0;
+    display: none;
   }
 
   .top-heading {
     flex: 1;
     min-width: 0;
     text-align: left;
+    grid-column: unset;
+    grid-row: unset;
   }
 
   .top-heading .sub {
@@ -1272,6 +1274,8 @@ a.btn.primary {
   .top-bar-right {
     flex-shrink: 0;
     margin-left: auto;
+    grid-column: unset;
+    grid-row: unset;
   }
 }
 

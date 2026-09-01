@@ -33,13 +33,13 @@ export default function Header({ title, subtitle, onMenuToggle }) {
           />
         </button>
 
-        <div className="top-bar-right">
-          <UserMenu />
-        </div>
-
         <div className="top-heading">
           <h1 id="page-title">{title}</h1>
           {subtitle && <div className="sub">{subtitle}</div>}
+        </div>
+
+        <div className="top-bar-right">
+          <UserMenu />
         </div>
       </div>
     </header>
