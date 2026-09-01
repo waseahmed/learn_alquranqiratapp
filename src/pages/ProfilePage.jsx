@@ -235,6 +235,16 @@ export default function ProfilePage() {
             />
             Show ayah index on Practice
           </label>
+          <label className="nav-pref">
+            <input
+              type="checkbox"
+              checked={sidebar?.autoAdvanceAyah === true}
+              onChange={(e) =>
+                setSidebar({ ...(sidebar || {}), autoAdvanceAyah: e.target.checked })
+              }
+            />
+            Continue to next ayah after playback
+          </label>
         </div>
       </div>
 

@@ -73,6 +73,7 @@ export default function PracticePageView({
   const [shadowActive, setShadowActive] = useState(false)
   const [shadowLabel, setShadowLabel] = useState('Ready')
   const shadowStopRef = useRef(false)
+  const autoAdvanceRef = useRef(false)
 
   useEffect(() => {
     saveLastPosition(surah, ayah)
@@ -165,25 +166,41 @@ export default function PracticePageView({
   }
 
   const playRate = slowRate || 1
+  const autoAdvanceAyah = sidebar?.autoAdvanceAyah === true
+
+  useEffect(() => {
+    autoAdvanceRef.current = autoAdvanceAyah
+  }, [autoAdvanceAyah])
+
+  function hasNextAyah() {
+    return ayah < versesCount || surah < 114
+  }
+
+  function maybeAutoAdvance(result) {
+    if (!autoAdvanceRef.current || !result?.ok || !hasNextAyah()) return
+    nextAyah()
+  }
 
   async function handlePlaySelected() {
     if (isPlayingSequence || shadowActive) {
       stopEverything()
       return
     }
-    await playSequence(
+    const result = await playSequence(
       selectedList.map((q) => q.key),
       surah,
       ayah,
       { ...loopCounts },
       playRate,
     )
+    maybeAutoAdvance(result)
   }
 
   async function handleReplay(key = primaryQariKey) {
     if (!key || isUnavailable(key, surah, ayah)) return
     stopEverything()
-    await playRepeats(key, surah, ayah, playRate, loopCounts[key] || 1)
+    const result = await playRepeats(key, surah, ayah, playRate, loopCounts[key] || 1)
+    maybeAutoAdvance(result)
   }
 
   async function handlePlayToggle(key) {
@@ -193,7 +210,8 @@ export default function PracticePageView({
       return
     }
     stopEverything()
-    await playRepeats(key, surah, ayah, playRate, loopCounts[key] || 1)
+    const result = await playRepeats(key, surah, ayah, playRate, loopCounts[key] || 1)
+    maybeAutoAdvance(result)
   }
 
   async function handleSlowToggle(key = primaryQariKey, rate = 0.8) {
@@ -205,7 +223,8 @@ export default function PracticePageView({
     }
     setSlowRate(rate)
     stopEverything()
-    await playRepeats(key, surah, ayah, rate, loopCounts[key] || 1)
+    const result = await playRepeats(key, surah, ayah, rate, loopCounts[key] || 1)
+    maybeAutoAdvance(result)
   }
 
   async function runShadow(key) {
@@ -261,6 +280,10 @@ export default function PracticePageView({
     setSidebar({ ...(sidebar || {}), showAyahIndex: !showAyahIndex })
   }
 
+  function toggleAutoAdvanceAyah() {
+    setSidebar({ ...(sidebar || {}), autoAdvanceAyah: !autoAdvanceAyah })
+  }
+
   return (
     <div className="practice-page">
       <Header
@@ -285,6 +308,17 @@ export default function PracticePageView({
           <button type="button" className="btn" onClick={nextAyah} title="Go to next ayah">
             Next ›
           </button>
+          <label
+            className="auto-advance-pref"
+            title="After playback finishes, go to the next ayah automatically"
+          >
+            <input
+              type="checkbox"
+              checked={autoAdvanceAyah}
+              onChange={toggleAutoAdvanceAyah}
+            />
+            Next ayah
+          </label>
         </div>
 
         <div className="control-group control-group-secondary" aria-label="Favourites and display">

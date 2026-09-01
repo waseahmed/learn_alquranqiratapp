@@ -234,18 +234,37 @@ export function useAudioPlayer() {
     async (qariKeys, surah, ayah, repeatsByKey = {}, rate = 1) => {
       stopFlag.current = false
       setIsPlayingSequence(true)
+      let playedAny = false
       for (const key of qariKeys) {
-        if (stopFlag.current) break
+        if (stopFlag.current) {
+          setIsPlayingSequence(false)
+          setCurrentlyPlayingQari(null)
+          setPlaybackRate(null)
+          return { ok: false, reason: 'stopped' }
+        }
         if (isUnavailable(key, surah, ayah)) continue
+        playedAny = true
         const times = Math.max(1, Number(repeatsByKey[key]) || 1)
         const result = await playRepeats(key, surah, ayah, rate, times, {
           continueSequence: true,
         })
-        if (result.reason === 'stopped') break
+        if (result.reason === 'stopped') {
+          setIsPlayingSequence(false)
+          setCurrentlyPlayingQari(null)
+          setPlaybackRate(null)
+          return { ok: false, reason: 'stopped' }
+        }
+        if (!result.ok) {
+          setIsPlayingSequence(false)
+          setCurrentlyPlayingQari(null)
+          setPlaybackRate(null)
+          return result
+        }
       }
       setIsPlayingSequence(false)
       setCurrentlyPlayingQari(null)
       setPlaybackRate(null)
+      return playedAny ? { ok: true } : { ok: false, reason: 'unavailable' }
     },
     [isUnavailable, playRepeats],
   )

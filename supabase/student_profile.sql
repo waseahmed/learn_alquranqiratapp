@@ -55,7 +55,8 @@ create table if not exists public.user_preferences (
     "showFullQuran": true,
     "showJuz": true,
     "showAyahSection": true,
-    "showAyahIndex": true
+    "showAyahIndex": true,
+    "autoAdvanceAyah": false
   }'::jsonb,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()

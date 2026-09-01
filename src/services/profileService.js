@@ -14,6 +14,7 @@ export const DEFAULT_SIDEBAR = {
   showJuz: true,
   showAyahSection: true,
   showAyahIndex: true,
+  autoAdvanceAyah: false,
 }
 
 function lighten(hex, amount = 0.88) {

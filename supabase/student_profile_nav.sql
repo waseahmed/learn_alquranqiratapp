@@ -7,11 +7,17 @@ alter table public.user_preferences
     "showFullQuran": true,
     "showJuz": true,
     "showAyahSection": true,
-    "showAyahIndex": true
+    "showAyahIndex": true,
+    "autoAdvanceAyah": false
   }'::jsonb;
 
--- Merge showAyahIndex into existing preference rows that lack it
+-- Merge missing sidebar keys into existing preference rows
 update public.user_preferences
 set sidebar = coalesce(sidebar, '{}'::jsonb) || '{"showAyahIndex": true}'::jsonb
 where sidebar is null
    or not (sidebar ? 'showAyahIndex');
+
+update public.user_preferences
+set sidebar = coalesce(sidebar, '{}'::jsonb) || '{"autoAdvanceAyah": false}'::jsonb
+where sidebar is null
+   or not (sidebar ? 'autoAdvanceAyah');
