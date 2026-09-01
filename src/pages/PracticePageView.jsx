@@ -74,6 +74,16 @@ export default function PracticePageView({
   const [shadowLabel, setShadowLabel] = useState('Ready')
   const shadowStopRef = useRef(false)
   const autoAdvanceRef = useRef(false)
+  /** When set, the next surah/ayah change should resume playback instead of stopping. */
+  const pendingContinueRef = useRef(null)
+  const playbackRef = useRef({
+    selectedList: [],
+    loopCounts: {},
+    playRate: 1,
+    playSequence,
+    playRepeats,
+    isUnavailable,
+  })
 
   useEffect(() => {
     saveLastPosition(surah, ayah)
@@ -122,16 +132,12 @@ export default function PracticePageView({
   const primaryQariKey = selectedList[0]?.key || availableQaris[0]?.key
 
   const stopEverything = useCallback(() => {
+    pendingContinueRef.current = null
     shadowStopRef.current = true
     setShadowActive(false)
     setShadowLabel('Ready')
     stopAudio()
   }, [stopAudio])
-
-  useEffect(() => {
-    stopEverything()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [surah, ayah])
 
   function persistOrder(nextSet) {
     const kept = qariOrder.filter((k) => nextSet.has(k))
@@ -172,14 +178,75 @@ export default function PracticePageView({
     autoAdvanceRef.current = autoAdvanceAyah
   }, [autoAdvanceAyah])
 
+  useEffect(() => {
+    playbackRef.current = {
+      selectedList,
+      loopCounts,
+      playRate,
+      playSequence,
+      playRepeats,
+      isUnavailable,
+    }
+  }, [selectedList, loopCounts, playRate, playSequence, playRepeats, isUnavailable])
+
   function hasNextAyah() {
     return ayah < versesCount || surah < 114
   }
 
-  function maybeAutoAdvance(result) {
+  function scheduleAutoContinue(result, session) {
     if (!autoAdvanceRef.current || !result?.ok || !hasNextAyah()) return
+    pendingContinueRef.current = session
     nextAyah()
   }
+
+  useEffect(() => {
+    const session = pendingContinueRef.current
+    if (!session) {
+      stopEverything()
+      return undefined
+    }
+
+    pendingContinueRef.current = null
+    let cancelled = false
+
+    ;(async () => {
+      stopAudio()
+      shadowStopRef.current = true
+      setShadowActive(false)
+      setShadowLabel('Ready')
+
+      const ctx = playbackRef.current
+      let result = { ok: false, reason: 'unavailable' }
+
+      if (session.mode === 'all') {
+        result = await ctx.playSequence(
+          ctx.selectedList.map((q) => q.key),
+          surah,
+          ayah,
+          { ...ctx.loopCounts },
+          session.rate ?? ctx.playRate,
+        )
+      } else if (session.qariKey) {
+        if (!ctx.isUnavailable(session.qariKey, surah, ayah)) {
+          result = await ctx.playRepeats(
+            session.qariKey,
+            surah,
+            ayah,
+            session.rate ?? ctx.playRate,
+            ctx.loopCounts[session.qariKey] || 1,
+          )
+        }
+      }
+
+      if (cancelled) return
+      scheduleAutoContinue(result, session)
+    })()
+
+    return () => {
+      cancelled = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [surah, ayah])
 
   async function handlePlaySelected() {
     if (isPlayingSequence || shadowActive) {
@@ -193,14 +260,14 @@ export default function PracticePageView({
       { ...loopCounts },
       playRate,
     )
-    maybeAutoAdvance(result)
+    scheduleAutoContinue(result, { mode: 'all', rate: playRate })
   }
 
   async function handleReplay(key = primaryQariKey) {
     if (!key || isUnavailable(key, surah, ayah)) return
     stopEverything()
     const result = await playRepeats(key, surah, ayah, playRate, loopCounts[key] || 1)
-    maybeAutoAdvance(result)
+    scheduleAutoContinue(result, { mode: 'single', qariKey: key, rate: playRate })
   }
 
   async function handlePlayToggle(key) {
@@ -211,7 +278,7 @@ export default function PracticePageView({
     }
     stopEverything()
     const result = await playRepeats(key, surah, ayah, playRate, loopCounts[key] || 1)
-    maybeAutoAdvance(result)
+    scheduleAutoContinue(result, { mode: 'single', qariKey: key, rate: playRate })
   }
 
   async function handleSlowToggle(key = primaryQariKey, rate = 0.8) {
@@ -224,7 +291,7 @@ export default function PracticePageView({
     setSlowRate(rate)
     stopEverything()
     const result = await playRepeats(key, surah, ayah, rate, loopCounts[key] || 1)
-    maybeAutoAdvance(result)
+    scheduleAutoContinue(result, { mode: 'single', qariKey: key, rate })
   }
 
   async function runShadow(key) {
@@ -310,7 +377,7 @@ export default function PracticePageView({
           </button>
           <label
             className="auto-advance-pref"
-            title="After playback finishes, go to the next ayah automatically"
+            title="After playback finishes, go to the next ayah and keep playing"
           >
             <input
               type="checkbox"
