@@ -20,7 +20,14 @@ const steps = [
   },
   {
     title: '5. Record and A/B compare',
-    body: 'Qari → child → Qari → child. Ask the child to identify where their pitch, pause or rhythm changed.',
+    body: (
+      <>
+        Qari → child → Qari → child. Ask the child to identify where their pitch,
+        pause or rhythm changed. Use the{' '}
+        <Link to="/compare-audio">Compare audio</Link> page to upload both takes
+        and see waveform differences.
+      </>
+    ),
   },
 ]
 

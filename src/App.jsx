@@ -7,6 +7,7 @@ import PracticePage from './pages/PracticePage.jsx'
 import HowToImitatePage from './pages/HowToImitatePage.jsx'
 import CommonMistakesPage from './pages/CommonMistakesPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
+import CompareAudioPage from './pages/CompareAudioPage.jsx'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -52,6 +53,7 @@ export default function App() {
         <Route path="profile" element={<ProfilePage />} />
         <Route path="how-to-imitate" element={<HowToImitatePage />} />
         <Route path="common-mistakes" element={<CommonMistakesPage />} />
+        <Route path="compare-audio" element={<CompareAudioPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
