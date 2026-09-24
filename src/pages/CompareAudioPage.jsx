@@ -2,16 +2,29 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import Header from '../components/Layout/Header'
 import WaveformCompare from '../components/Practice/WaveformCompare'
+import ScoreRadarChart from '../components/Practice/ScoreRadarChart'
+import ScoreReveal from '../components/Practice/ScoreReveal'
+import PitchContourChart from '../components/Practice/PitchContourChart'
+import SpectrogramView from '../components/Practice/SpectrogramView'
+import SegmentTimeline from '../components/Practice/SegmentTimeline'
+import RulePatternCheck from '../components/Practice/RulePatternCheck'
+import PracticeTrend from '../components/Practice/PracticeTrend'
+import InfoTip from '../components/Practice/InfoTip'
 import { getAyahAudioUrl } from '../services/audioService'
 import {
   compareEnvelopes,
   decodeAudioBlob,
   formatDuration,
+  ENVELOPE_POINTS,
 } from '../services/audioCompare'
+import { buildRecitationAnalysis } from '../services/recitationAnalysis'
+import { savePracticeAttempt, fetchPracticeTrend } from '../services/practiceAttempts'
 import { getQarisForSurah } from '../data/qaris'
 import { useProfile } from '../contexts/ProfileContext'
+import { useAuth } from '../contexts/AuthContext'
 
 const ACCEPT = 'audio/*,.mp3,.wav,.m4a,.ogg,.webm'
+const ADVANCED_KEY = 'aqqaCompareShowAdvanced'
 
 function SlotCard({
   title,
@@ -69,6 +82,7 @@ function SlotCard({
 export default function CompareAudioPage() {
   const { onMenuToggle, surah, ayah } = useOutletContext()
   const { qariOrder } = useProfile()
+  const { user } = useAuth()
 
   const [refFile, setRefFile] = useState(null)
   const [studentFile, setStudentFile] = useState(null)
@@ -80,12 +94,22 @@ export default function CompareAudioPage() {
   const [error, setError] = useState(null)
   const [progress, setProgress] = useState(0)
   const [activeTrack, setActiveTrack] = useState(null)
+  const [trend, setTrend] = useState([])
+  const [saveStatus, setSaveStatus] = useState(null)
+  const [showAdvanced, setShowAdvanced] = useState(() => {
+    try {
+      return localStorage.getItem(ADVANCED_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
 
   const refAudioRef = useRef(null)
   const studentAudioRef = useRef(null)
   const objectUrlsRef = useRef([])
   const abPhaseRef = useRef(null)
   const rafRef = useRef(0)
+  const savedAttemptKeyRef = useRef(null)
 
   const availableQaris = useMemo(() => getQarisForSurah(surah || 1), [surah])
   const primaryQari =
@@ -95,6 +119,46 @@ export default function CompareAudioPage() {
     if (!refAnalysis || !studentAnalysis) return null
     return compareEnvelopes(refAnalysis, studentAnalysis)
   }, [refAnalysis, studentAnalysis])
+
+  const recitationAnalysis = useMemo(() => {
+    if (!refAnalysis?.channelData || !studentAnalysis?.channelData) return null
+    return buildRecitationAnalysis(refAnalysis, studentAnalysis)
+  }, [refAnalysis, studentAnalysis])
+
+  useEffect(() => {
+    if (!user?.id) {
+      setTrend([])
+      return
+    }
+    fetchPracticeTrend(user.id, { surah, ayah }).then(setTrend)
+  }, [user?.id, surah, ayah])
+
+  useEffect(() => {
+    if (!recitationAnalysis) return
+    if (!user?.id) {
+      setSaveStatus({ ok: false, message: 'Sign in to save your practice history across devices.' })
+      return
+    }
+    const key = `${surah}:${ayah}:${refAnalysis.duration}:${studentAnalysis.duration}:${recitationAnalysis.overallScore}`
+    if (savedAttemptKeyRef.current === key) return
+    savedAttemptKeyRef.current = key
+    setSaveStatus({ ok: null, message: 'Saving…' })
+
+    savePracticeAttempt(user.id, {
+      surah,
+      ayah,
+      qariKey: primaryQari?.key,
+      overallScore: recitationAnalysis.overallScore,
+      components: recitationAnalysis.components,
+    }).then(({ error: saveError }) => {
+      if (saveError) {
+        setSaveStatus({ ok: false, message: saveError.message })
+        return
+      }
+      setSaveStatus({ ok: true, message: 'Saved to your practice history.' })
+      fetchPracticeTrend(user.id, { surah, ayah }).then(setTrend)
+    })
+  }, [recitationAnalysis, user?.id, surah, ayah, primaryQari, refAnalysis, studentAnalysis])
 
   useEffect(
     () => () => {
@@ -135,6 +199,18 @@ export default function CompareAudioPage() {
     id = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(id)
   }, [refUrl, studentUrl])
+
+  function toggleAdvanced() {
+    setShowAdvanced((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(ADVANCED_KEY, next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }
 
   function trackUrl(url) {
     objectUrlsRef.current.push(url)
@@ -252,6 +328,49 @@ export default function CompareAudioPage() {
     ref.play().catch(() => {})
   }
 
+  function playSpan(el, startTime, endTime) {
+    return new Promise((resolve) => {
+      const onTime = () => {
+        if (el.currentTime >= endTime || el.ended) {
+          el.removeEventListener('timeupdate', onTime)
+          el.pause()
+          resolve()
+        }
+      }
+      try {
+        el.currentTime = startTime
+      } catch {
+        /* ignore */
+      }
+      el.addEventListener('timeupdate', onTime)
+      el.play().catch(() => resolve())
+    })
+  }
+
+  async function playZone(region) {
+    const ref = refAudioRef.current
+    const you = studentAudioRef.current
+    if (!ref || !you) return
+    pauseBoth()
+    abPhaseRef.current = 'zone'
+
+    const startRatio = region.start / ENVELOPE_POINTS
+    const endRatio = (region.end + 1) / ENVELOPE_POINTS
+    const refDuration = refAnalysis?.duration || ref.duration || 0
+    const studentDuration = studentAnalysis?.duration || you.duration || 0
+
+    setActiveTrack('ab-ref')
+    await playSpan(ref, startRatio * refDuration, endRatio * refDuration)
+    if (abPhaseRef.current !== 'zone') return
+    setActiveTrack('ab-you')
+    setProgress(0)
+    await playSpan(you, startRatio * studentDuration, endRatio * studentDuration)
+    if (abPhaseRef.current !== 'zone') return
+    abPhaseRef.current = null
+    setActiveTrack(null)
+    setProgress(0)
+  }
+
   return (
     <section className="guide compare-page">
       <Header
@@ -345,14 +464,11 @@ export default function CompareAudioPage() {
       ) : null}
 
       {comparison ? (
-        <>
-          <div className="guide-card compare-score-card">
-            <div className="rule">Match overview</div>
+        <div key={`cmp-${refAnalysis.duration}-${studentAnalysis.duration}`}>
+          <div className="guide-card compare-score-card analysis-card-in" style={{ animationDelay: '0ms' }}>
+            <div className="rule">Your score</div>
             <div className="compare-score-row">
-              <div className="compare-score-big" aria-label="Similarity score">
-                {comparison.score}
-                <span>/100</span>
-              </div>
+              <ScoreReveal score={recitationAnalysis?.overallScore ?? comparison.score} />
               <div className="compare-metrics">
                 <div>
                   <b>Shape match</b> {comparison.similarityPct}%
@@ -373,24 +489,40 @@ export default function CompareAudioPage() {
                 </div>
               </div>
             </div>
+            {saveStatus ? (
+              <p className={`save-status ${saveStatus.ok === false ? 'save-status-error' : ''}`}>
+                {saveStatus.ok === true ? '✓ ' : saveStatus.ok === false ? '⚠ ' : ''}
+                {saveStatus.message}
+              </p>
+            ) : null}
+            {trend.length ? <PracticeTrend attempts={trend} /> : null}
+            {user?.id ? (
+              <Link to="/my-attempts" className="btn attempts-view-all">
+                View all my attempts →
+              </Link>
+            ) : null}
           </div>
 
-          <div className="guide-card">
-            <div className="rule">Waveform difference</div>
+          <div className="guide-card analysis-card-in" style={{ animationDelay: '90ms' }}>
+            <div className="rule">
+              Waveform difference <InfoTip text="Green means that part matched well. Gold means a little different. Red means the biggest difference — a great spot to practice. Tap a numbered circle to hear the reciter, then you, for just that part." />
+            </div>
             <p className="guide-intro" style={{ marginBottom: 10 }}>
-              Gold highlight = places where your loudness / timing shape left the
-              reference most. Use A → B and focus on those zones.
+              🟢 Great match · 🟡 A little different · 🔴 Try that part again. Tap a numbered circle
+              to hear it played back!
             </p>
             <WaveformCompare
               referenceEnvelope={refAnalysis.envelope}
               studentEnvelope={studentAnalysis.envelope}
               regions={comparison.regions}
+              diffSeries={comparison.diffSeries}
               progress={progress}
               activeTrack={activeTrack}
+              onZoneClick={playZone}
             />
           </div>
 
-          <div className="guide-card">
+          <div className="guide-card analysis-card-in" style={{ animationDelay: '180ms' }}>
             <div className="rule">How to improve</div>
             <ul className="compare-tips">
               {comparison.tips.map((tip) => (
@@ -398,7 +530,71 @@ export default function CompareAudioPage() {
               ))}
             </ul>
           </div>
-        </>
+
+          {recitationAnalysis ? (
+            <>
+              <button type="button" className="btn advanced-toggle" onClick={toggleAdvanced}>
+                {showAdvanced ? '🔬 Hide advanced analysis' : '🔬 Show advanced analysis'}
+              </button>
+
+              {showAdvanced ? (
+                <div className="advanced-section">
+                  <div className="guide-card compare-score-card">
+                    <div className="rule">Score breakdown</div>
+                    <div className="compare-score-row">
+                      <div className="analysis-radar-wrap">
+                        <ScoreRadarChart scores={recitationAnalysis.components} />
+                      </div>
+                    </div>
+                    <p className="guide-intro" style={{ marginTop: 8, marginBottom: 0 }}>
+                      Your overall score above is the average of pitch, pace, pause, madd-length and
+                      rhythm. This is a practice aid, not a tajweed evaluation.
+                    </p>
+                  </div>
+
+                  <div className="guide-card">
+                    <div className="rule">Pitch contour</div>
+                    <p className="guide-intro" style={{ marginBottom: 10 }}>
+                      F0 (pitch) similarity: {recitationAnalysis.pitch.score}/100
+                      {recitationAnalysis.pitch.insufficientData
+                        ? ' — not enough voiced overlap to compare reliably.'
+                        : '.'}
+                    </p>
+                    <PitchContourChart
+                      referenceHz={recitationAnalysis.pitch.referenceContour.hz}
+                      practiceHz={recitationAnalysis.pitch.practiceContour.hz}
+                    />
+                  </div>
+
+                  <div className="guide-card">
+                    <div className="rule">Spectrograms</div>
+                    <div className="spectrogram-grid">
+                      <SpectrogramView spectrogram={recitationAnalysis.spectrograms.reference} label="Reference" />
+                      <SpectrogramView spectrogram={recitationAnalysis.spectrograms.practice} label="Yours" />
+                    </div>
+                  </div>
+
+                  <div className="guide-card">
+                    <div className="rule">Word-by-word timing</div>
+                    <p className="guide-intro" style={{ marginBottom: 10 }}>
+                      Pace consistency {recitationAnalysis.pace.score}/100 · Pause/waqf accuracy{' '}
+                      {recitationAnalysis.pause.score}/100 · Madd length {recitationAnalysis.components.madd}/100
+                    </p>
+                    <SegmentTimeline table={recitationAnalysis.durationTable} />
+                  </div>
+
+                  <div className="guide-card">
+                    <div className="rule">Rule-pattern check</div>
+                    <RulePatternCheck
+                      ghunnah={recitationAnalysis.ghunnah}
+                      pausePlacementNote={recitationAnalysis.pause.pausePlacementNote}
+                    />
+                  </div>
+                </div>
+              ) : null}
+            </>
+          ) : null}
+        </div>
       ) : (
         <div className="guide-card">
           <div className="rule">Getting started</div>

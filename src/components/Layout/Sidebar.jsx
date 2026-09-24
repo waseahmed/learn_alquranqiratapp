@@ -99,6 +99,18 @@ export default function Sidebar({
           </div>
         </button>
 
+        <button
+          type="button"
+          className="sidebar-now-reading"
+          onClick={() => handleSurah(currentSurah, currentAyah)}
+          title="Jump back to where you're reading"
+        >
+          <span className="sidebar-now-reading-label">Now reading</span>
+          <span className="sidebar-now-reading-pos">
+            {currentSurah}. {surahs[String(currentSurah)]?.name_en || 'Surah'} · {currentSurah}:{currentAyah}
+          </span>
+        </button>
+
         <div className="menu-title">Practice</div>
 
         <button
@@ -115,21 +127,16 @@ export default function Sidebar({
             {bookmarks.length === 0 ? (
               <p className="sidebar-empty">Star an ayah or surah while practicing.</p>
             ) : (
-              bookmarks.map((b) => {
-                const active =
-                  currentSurah === b.surah &&
-                  (b.kind === 'surah' || currentAyah === b.ayah)
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    className={`item ${active ? 'active' : ''}`}
-                    onClick={() => handleSurah(b.surah, b.ayah || 1)}
-                  >
-                    {bookmarkLabel(b)}
-                  </button>
-                )
-              })
+              bookmarks.map((b) => (
+                <button
+                  key={b.id}
+                  type="button"
+                  className="item"
+                  onClick={() => handleSurah(b.surah, b.ayah || 1)}
+                >
+                  {bookmarkLabel(b)}
+                </button>
+              ))
             )}
           </div>
         )}
@@ -151,7 +158,7 @@ export default function Sidebar({
                   <button
                     key={s.number}
                     type="button"
-                    className={`item ${currentSurah === s.number ? 'active' : ''}`}
+                    className="item"
                     onClick={() => handleSurah(s.number)}
                   >
                     {s.number}. {s.label}
@@ -221,7 +228,7 @@ export default function Sidebar({
                     <button
                       key={s.number}
                       type="button"
-                      className={`item ${currentSurah === s.number ? 'active' : ''}`}
+                      className="item"
                       onClick={() => handleSurah(s.number)}
                     >
                       {s.number}. {s.name_en}
@@ -247,6 +254,13 @@ export default function Sidebar({
             onClick={onCloseMobile}
           >
             Compare audio
+          </NavLink>
+          <NavLink
+            to="/my-attempts"
+            className={({ isActive }) => `item nav-item ${isActive ? 'active' : ''}`}
+            onClick={onCloseMobile}
+          >
+            My attempts
           </NavLink>
           <NavLink
             to="/how-to-imitate"

@@ -126,6 +126,8 @@ export async function decodeAudioBlob(blob) {
       duration: buffer.duration,
       sampleRate: buffer.sampleRate,
       envelope: rmsEnvelope(channel),
+      // Raw mono PCM, kept for pitch/FFT/segment analysis (see recitationAnalysis.js).
+      channelData: channel,
     }
   } finally {
     await ctx.close().catch(() => {})
@@ -141,6 +143,10 @@ export function compareEnvelopes(refAnalysis, studentAnalysis) {
   const similarity = (pearson(ref, student) + 1) / 2
   const durationRatio = studentAnalysis.duration / Math.max(0.01, refAnalysis.duration)
   const regions = findDifferenceRegions(ref, student)
+  const n = Math.min(ref.length, student.length)
+  // Per-point |ref - student| across the envelope, for a continuous heat-strip
+  // visualization (the sparse `regions` above only flag the strongest spots).
+  const diffSeries = Array.from({ length: n }, (_, i) => Math.abs(ref[i] - student[i]))
   const score = Math.round(
     Math.max(
       0,
@@ -157,6 +163,7 @@ export function compareEnvelopes(refAnalysis, studentAnalysis) {
     durationRatio,
     score,
     regions,
+    diffSeries,
     tips: buildTips({ durationRatio, similarity, regions }),
     metrics: {
       referenceDuration: formatDuration(refAnalysis.duration),
@@ -166,4 +173,4 @@ export function compareEnvelopes(refAnalysis, studentAnalysis) {
   }
 }
 
-export { formatDuration }
+export { formatDuration, pearson, MAX_POINTS as ENVELOPE_POINTS }
