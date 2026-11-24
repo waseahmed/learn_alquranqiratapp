@@ -108,11 +108,15 @@ export async function adminClearLiveQuizAnswers(pin) {
   return { data: null, error }
 }
 
+function liveQuizChannelKey(table) {
+  return `live-quiz-${table}:${crypto.randomUUID()}`
+}
+
 export function subscribeLiveQuizQuestions(onChange) {
   if (!supabase) return () => {}
 
   const channel = supabase
-    .channel('live-quiz-questions')
+    .channel(liveQuizChannelKey('questions'))
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'live_quiz_questions' },
@@ -129,7 +133,7 @@ export function subscribeLiveQuizState(onChange) {
   if (!supabase) return () => {}
 
   const channel = supabase
-    .channel('live-quiz-state')
+    .channel(liveQuizChannelKey('state'))
     .on(
       'postgres_changes',
       { event: '*', schema: 'public', table: 'live_quiz_state' },
@@ -149,7 +153,7 @@ export function subscribeLiveQuizVotes(onInsert) {
   if (!supabase) return () => {}
 
   const channel = supabase
-    .channel('live-quiz-votes')
+    .channel(liveQuizChannelKey('votes'))
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'live_quiz_votes' },
