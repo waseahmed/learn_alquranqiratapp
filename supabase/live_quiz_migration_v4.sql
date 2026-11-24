@@ -162,6 +162,7 @@ begin
     phase = 'waiting',
     question_number = null,
     selected_option = null,
+    round_id = gen_random_uuid(),
     phase_started_at = now(),
     updated_at = now()
   where id = 1;

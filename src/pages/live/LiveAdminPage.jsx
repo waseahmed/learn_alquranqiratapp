@@ -205,10 +205,14 @@ export default function LiveAdminPage() {
     })
   }
 
-  function handleLock() {
-    sessionStorage.removeItem(PIN_STORAGE_KEY)
+  function resetSentQuestionMarks() {
     sessionStorage.removeItem(SENT_QUESTIONS_KEY)
     setSentQuestionNums(new Set())
+  }
+
+  function handleLock() {
+    sessionStorage.removeItem(PIN_STORAGE_KEY)
+    resetSentQuestionMarks()
     setPinUnlocked(false)
     setPin('')
     setPinInput('')
@@ -347,8 +351,8 @@ export default function LiveAdminPage() {
                 <div className="live-admin-questions">
                   {sendableQuestions.map((q) => {
                     const isLive =
-                      display.questionNumber === q.number &&
-                      display.displayPhase !== 'waiting'
+                      display.displayPhase === 'question' &&
+                      display.questionNumber === q.number
                     const wasSent = sentQuestionNums.has(q.number)
                     return (
                       <div
@@ -421,7 +425,10 @@ export default function LiveAdminPage() {
                     refreshQuestions()
                     refreshStats()
                   }}
-                  onCleared={() => refreshStats()}
+                  onCleared={() => {
+                    resetSentQuestionMarks()
+                    refreshStats()
+                  }}
                 />
               </div>
             )}
