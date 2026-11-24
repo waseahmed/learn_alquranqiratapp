@@ -51,12 +51,13 @@ https://learn.alquranqiratacademy.com/#/live/admin
 ```
 
 1. In Supabase SQL Editor, run `supabase/live_quiz.sql` (after `schema.sql`).
-2. Set the host PIN: `update public.live_quiz_secrets set admin_pin = 'your-secret' where id = 1;`
-3. In Supabase **Database → Replication**, ensure `live_quiz_state` is enabled for Realtime (the SQL script tries to add it automatically).
-4. Edit question/option labels in `src/data/liveQuizQuestions.js` if needed.
-5. Deploy as usual.
+2. If live quiz was already installed, also run `supabase/live_quiz_migration_v2.sql` (votes + mother/father signup).
+3. Set the host PIN: `update public.live_quiz_secrets set admin_pin = 'your-secret' where id = 1;`
+4. In Supabase **Database → Replication**, ensure `live_quiz_state` and `live_quiz_votes` are enabled for Realtime.
+5. Edit question/option labels in `src/data/liveQuizQuestions.js` if needed.
+6. Deploy as usual.
 
-**Flow:** Parents enter child name, parent name, and gender, then join. The admin opens `/live/admin`, enters the PIN, and clicks an option under Question 1–5 — that answer appears on every joined parent screen with a **10 second** countdown, then **Timed out**. **Show “wait for next one”** puts everyone back on the waiting screen.
+**Flow:** Parents enter **child name** and **Mother** or **Father**, then join. The admin opens `/live/admin`, enters the PIN, and clicks **Send** next to a question (options sit on the same row). Parents see the **same option labels** and tap one answer during the **10 second** timer. The admin **Answer overview** shows joined count, how many answered, and votes per option. **Timed out** ends the round; **Show “wait for next one”** puts everyone back on the waiting screen.
 
 ---
 

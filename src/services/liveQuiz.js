@@ -10,26 +10,41 @@ export async function fetchLiveQuizState() {
   return { data, error }
 }
 
-export async function joinLiveQuiz({ kidName, parentName, gender }) {
+export async function joinLiveQuiz({ kidName, parentRole }) {
   if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
   const { data, error } = await supabase
     .from('live_quiz_participants')
     .insert({
       kid_name: kidName.trim(),
-      parent_name: parentName.trim(),
-      gender,
+      parent_role: parentRole,
     })
     .select('id')
     .single()
   return { data, error }
 }
 
-export async function adminShowOption(pin, questionNumber, optionNumber) {
+export async function submitLiveQuizVote(participantId, optionNumber) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { data, error } = await supabase.rpc('live_quiz_submit_vote', {
+    p_participant_id: participantId,
+    p_option: optionNumber,
+  })
+  return { data, error }
+}
+
+export async function adminLiveQuizStats(pin) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { data, error } = await supabase.rpc('live_quiz_admin_stats', { p_pin: pin })
+  return { data, error }
+}
+
+/** Opens a question for parent voting; hostOption marks which send button was used. */
+export async function adminShowOption(pin, questionNumber, hostOption = 1) {
   if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
   const { data, error } = await supabase.rpc('live_quiz_admin_show_option', {
     p_pin: pin,
     p_question: questionNumber,
-    p_option: optionNumber,
+    p_option: hostOption,
   })
   return { data, error }
 }
@@ -58,6 +73,28 @@ export function subscribeLiveQuizState(onChange) {
         const row = payload.new
         if (row?.id === 1) onChange(row)
       },
+    )
+    .subscribe()
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
+}
+
+export function subscribeLiveQuizVotes(onInsert) {
+  if (!supabase) return () => {}
+
+  const channel = supabase
+    .channel('live-quiz-votes')
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'live_quiz_votes' },
+      () => onInsert(),
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'live_quiz_votes' },
+      () => onInsert(),
     )
     .subscribe()
 

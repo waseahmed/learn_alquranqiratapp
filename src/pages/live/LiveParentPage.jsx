@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { APP_NAME, APP_TAGLINE } from '../../config'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
-import { joinLiveQuiz } from '../../services/liveQuiz'
+import { joinLiveQuiz, submitLiveQuizVote } from '../../services/liveQuiz'
 import { supabaseConfigured } from '../../services/supabase'
 
 const STORAGE_KEY = 'aqqa_live_participant'
@@ -16,16 +16,42 @@ function readStoredParticipant() {
   }
 }
 
+function roleLabel(role) {
+  return role === 'father' ? 'Father' : 'Mother'
+}
+
 function LiveScreen({ participant }) {
   const {
     displayPhase,
     question,
-    optionLabel,
+    roundId,
     remainingSec,
     timerSeconds,
     loadError,
     loading,
   } = useLiveQuizDisplay()
+
+  const [votedOption, setVotedOption] = useState(null)
+  const [voteError, setVoteError] = useState('')
+  const [voteBusy, setVoteBusy] = useState(false)
+
+  useEffect(() => {
+    setVotedOption(null)
+    setVoteError('')
+  }, [roundId])
+
+  async function handleVote(optionNumber) {
+    if (displayPhase !== 'question' || voteBusy || votedOption) return
+    setVoteError('')
+    setVoteBusy(true)
+    const { error } = await submitLiveQuizVote(participant.id, optionNumber)
+    setVoteBusy(false)
+    if (error) {
+      setVoteError(error.message || 'Could not save your answer.')
+      return
+    }
+    setVotedOption(optionNumber)
+  }
 
   if (loading) {
     return <p className="live-muted">Connecting to the session…</p>
@@ -39,10 +65,13 @@ function LiveScreen({ participant }) {
     )
   }
 
+  const votedLabel =
+    votedOption && question ? question.options[votedOption - 1] : null
+
   return (
-  <div className="live-screen">
+    <div className="live-screen">
       <p className="live-welcome">
-        Welcome, <strong>{participant.kidName}</strong> (with {participant.parentName})
+        <strong>{participant.kidName}</strong> ({roleLabel(participant.parentRole)})
       </p>
 
       {displayPhase === 'waiting' && (
@@ -55,19 +84,38 @@ function LiveScreen({ participant }) {
       {displayPhase === 'question' && question && (
         <div className="live-panel live-panel--active">
           <p className="live-question-label">{question.title}</p>
-          <div
-            className="live-option-reveal"
-            role="status"
-            aria-live="polite"
-          >
-            {optionLabel ?? `Option ${question.number}`}
+          <p className="live-muted live-pick-hint">Tap your answer</p>
+          <div className="live-parent-options" role="group" aria-label="Answer choices">
+            {question.options.map((label, idx) => {
+              const optionNum = idx + 1
+              const isSelected = votedOption === optionNum
+              return (
+                <button
+                  key={optionNum}
+                  type="button"
+                  className={`btn live-parent-option ${isSelected ? 'primary' : 'ghost'}`}
+                  onClick={() => handleVote(optionNum)}
+                  disabled={voteBusy || Boolean(votedOption)}
+                >
+                  {label}
+                </button>
+              )
+            })}
           </div>
+          {votedLabel && (
+            <p className="live-vote-confirm" role="status">
+              Your answer: <strong>{votedLabel}</strong>
+            </p>
+          )}
+          {voteError && (
+            <p className="login-error" role="alert">
+              {voteError}
+            </p>
+          )}
           <div className="live-timer" aria-label={`${remainingSec} seconds remaining`}>
             <div
               className="live-timer-bar"
-              style={{
-                width: `${(remainingSec / timerSeconds) * 100}%`,
-              }}
+              style={{ width: `${(remainingSec / timerSeconds) * 100}%` }}
             />
           </div>
           <p className="live-timer-text">{remainingSec}s</p>
@@ -77,6 +125,13 @@ function LiveScreen({ participant }) {
       {displayPhase === 'timed_out' && (
         <div className="live-panel live-panel--timeout">
           <h2 className="live-panel-title">Timed out</h2>
+          {votedLabel ? (
+            <p className="live-muted">
+              You answered: <strong>{votedLabel}</strong>
+            </p>
+          ) : (
+            <p className="live-muted">No answer was sent in time.</p>
+          )}
           <p className="live-muted">Wait for the host to continue.</p>
         </div>
       )}
@@ -87,8 +142,7 @@ function LiveScreen({ participant }) {
 export default function LiveParentPage() {
   const [participant, setParticipant] = useState(() => readStoredParticipant())
   const [kidName, setKidName] = useState('')
-  const [parentName, setParentName] = useState('')
-  const [gender, setGender] = useState('male')
+  const [parentRole, setParentRole] = useState('mother')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
@@ -104,8 +158,7 @@ export default function LiveParentPage() {
     setSubmitting(true)
     const { data, error: joinError } = await joinLiveQuiz({
       kidName,
-      parentName,
-      gender,
+      parentRole,
     })
     setSubmitting(false)
     if (joinError) {
@@ -115,8 +168,7 @@ export default function LiveParentPage() {
     setParticipant({
       id: data.id,
       kidName: kidName.trim(),
-      parentName: parentName.trim(),
-      gender,
+      parentRole,
     })
   }
 
@@ -124,7 +176,6 @@ export default function LiveParentPage() {
     sessionStorage.removeItem(STORAGE_KEY)
     setParticipant(null)
     setKidName('')
-    setParentName('')
   }
 
   return (
@@ -159,40 +210,29 @@ export default function LiveParentPage() {
               disabled={!supabaseConfigured || submitting}
             />
 
-            <label htmlFor="parent-name">Parent&apos;s name</label>
-            <input
-              id="parent-name"
-              name="parentName"
-              type="text"
-              required
-              value={parentName}
-              onChange={(e) => setParentName(e.target.value)}
-              disabled={!supabaseConfigured || submitting}
-            />
-
-            <span className="live-label-block">Child&apos;s gender</span>
-            <div className="live-gender-row" role="radiogroup" aria-label="Gender">
+            <span className="live-label-block">Joining as</span>
+            <div className="live-gender-row" role="radiogroup" aria-label="Mother or father">
               <label className="live-gender-option">
                 <input
                   type="radio"
-                  name="gender"
-                  value="male"
-                  checked={gender === 'male'}
-                  onChange={() => setGender('male')}
+                  name="parentRole"
+                  value="mother"
+                  checked={parentRole === 'mother'}
+                  onChange={() => setParentRole('mother')}
                   disabled={!supabaseConfigured || submitting}
                 />
-                Male
+                Mother
               </label>
               <label className="live-gender-option">
                 <input
                   type="radio"
-                  name="gender"
-                  value="female"
-                  checked={gender === 'female'}
-                  onChange={() => setGender('female')}
+                  name="parentRole"
+                  value="father"
+                  checked={parentRole === 'father'}
+                  onChange={() => setParentRole('father')}
                   disabled={!supabaseConfigured || submitting}
                 />
-                Female
+                Father
               </label>
             </div>
 

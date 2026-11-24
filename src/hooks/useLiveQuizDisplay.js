@@ -52,6 +52,7 @@ export function useLiveQuizDisplay() {
       raw: state,
       displayPhase,
       questionNumber: state?.question_number ?? null,
+      roundId: state?.round_id ?? null,
       selectedOption: state?.selected_option ?? null,
       question,
       optionLabel:
