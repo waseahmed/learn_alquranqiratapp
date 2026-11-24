@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { APP_NAME, APP_TAGLINE } from '../../config'
 import { getQuestionFromList } from '../../data/liveQuizQuestions'
+import LiveAdminAnalysisPanel from '../../components/live/LiveAdminAnalysisPanel'
 import LiveQuizConfig from '../../components/live/LiveQuizConfig'
 import { LiveUsersDashboard, LiveUsersRoster } from '../../components/live/LiveUsersPanel'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
@@ -105,7 +106,9 @@ export default function LiveAdminPage() {
   const [participants, setParticipants] = useState([])
   const [stats, setStats] = useState(null)
   const [now, setNow] = useState(() => Date.now())
-  const [tab, setTab] = useState('host')
+  const location = useLocation()
+  const initialTab = location.state?.tab === 'analysis' ? 'analysis' : 'host'
+  const [tab, setTab] = useState(initialTab)
 
   const display = useLiveQuizDisplay()
   const { rows: questionRows, questions: sendableQuestions, refresh: refreshQuestions } =
@@ -197,8 +200,8 @@ export default function LiveAdminPage() {
     refreshStats()
   }
 
-  async function showOption(questionNumber, optionNumber) {
-    await runAction(() => adminShowOption(pin, questionNumber, optionNumber))
+  async function sendQuestion(questionNumber) {
+    await runAction(() => adminShowOption(pin, questionNumber, 1))
   }
 
   async function showWait() {
@@ -298,32 +301,27 @@ export default function LiveAdminPage() {
                 </button>
 
                 <div className="live-admin-questions">
-                  {sendableQuestions.map((q) => (
-                    <div key={q.number} className="live-admin-question-row">
-                      <h3 className="live-admin-question-title">{q.title}</h3>
-                      <div className="live-admin-options-inline">
-                        <span className="live-send-label">Send:</span>
-                        {q.sendLabels.map((label, idx) => {
-                          const optionNum = idx + 1
-                          const isLive =
-                            display.questionNumber === q.number &&
-                            display.displayPhase !== 'waiting'
-                          return (
-                            <button
-                              key={optionNum}
-                              type="button"
-                              className={`btn ${isLive ? 'primary' : 'ghost'} live-option-btn-inline live-send-num`}
-                              onClick={() => showOption(q.number, optionNum)}
-                              disabled={busy || !supabaseConfigured}
-                              title={`Send ${q.title} (${q.options[idx]})`}
-                            >
-                              {label}
-                            </button>
-                          )
-                        })}
+                  {sendableQuestions.map((q) => {
+                    const isLive =
+                      display.questionNumber === q.number &&
+                      display.displayPhase !== 'waiting'
+                    return (
+                      <div key={q.number} className="live-admin-question-row">
+                        <h3 className="live-admin-question-title">{q.title}</h3>
+                        <p className="live-admin-q-meta live-muted">
+                          {q.optionCount} choice{q.optionCount === 1 ? '' : 's'} on parent screen
+                        </p>
+                        <button
+                          type="button"
+                          className={`btn ${isLive ? 'primary' : 'ghost'} live-send-question-btn`}
+                          onClick={() => sendQuestion(q.number)}
+                          disabled={busy || !supabaseConfigured}
+                        >
+                          Send
+                        </button>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
             )}
@@ -357,12 +355,7 @@ export default function LiveAdminPage() {
 
             {tab === 'analysis' && (
               <div className="live-admin-tab-panel" role="tabpanel">
-                <p className="live-muted">
-                  Per-question breakdown with full question text and each family&apos;s answer.
-                </p>
-                <Link to="/live/admin/analysis" className="btn primary live-analysis-open">
-                  Open full analysis
-                </Link>
+                <LiveAdminAnalysisPanel pin={pin} />
               </div>
             )}
 

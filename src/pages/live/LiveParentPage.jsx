@@ -5,6 +5,11 @@ import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
 import { useParticipantHeartbeat } from '../../hooks/useParticipantHeartbeat'
 import { fetchLiveQuizParticipant, joinLiveQuiz, submitLiveQuizVote } from '../../services/liveQuiz'
 import { supabaseConfigured } from '../../services/supabase'
+import {
+  playAnswerSound,
+  playQuestionPopSound,
+  unlockLiveQuizAudio,
+} from '../../utils/liveQuizSounds'
 
 const STORAGE_KEY = 'aqqa_live_participant'
 
@@ -52,6 +57,7 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
 
   useEffect(() => {
     if (!roundId || displayPhase !== 'question') return undefined
+    playQuestionPopSound()
     setRevealAnim(true)
     const t = window.setTimeout(() => setRevealAnim(false), 700)
     return () => window.clearTimeout(t)
@@ -59,6 +65,7 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
 
   async function handleVote(optionNumber) {
     if (displayPhase !== 'question' || voteBusy || votedOption) return
+    unlockLiveQuizAudio()
     setVoteError('')
     setVoteBusy(true)
     const { error } = await submitLiveQuizVote(participant.id, optionNumber)
@@ -68,6 +75,7 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
       return
     }
     setVotedOption(optionNumber)
+    playAnswerSound()
     onAnswerConfetti()
   }
 
@@ -220,6 +228,7 @@ export default function LiveParentPage() {
       kidName: kidName.trim(),
       parentRole,
     })
+    unlockLiveQuizAudio()
     setConfetti(true)
   }
 
@@ -235,7 +244,7 @@ export default function LiveParentPage() {
   }
 
   return (
-    <div className="login-page live-page">
+    <div className="login-page live-page live-page--parent">
       <div className="login-card live-card live-card--wide live-card--parent-minimal">
         <ConfettiBurst active={confetti} onDone={() => setConfetti(false)} />
         <img

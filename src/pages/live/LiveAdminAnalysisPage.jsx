@@ -1,59 +1,26 @@
-import { useCallback, useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, Navigate } from 'react-router-dom'
 import { APP_NAME, APP_TAGLINE } from '../../config'
-import {
-  getFullOptionLabel,
-  getQuestionFromList,
-} from '../../data/liveQuizQuestions'
-import { useLiveQuizQuestions } from '../../hooks/useLiveQuizQuestions'
-import { adminLiveQuizDetailedAnalysis } from '../../services/liveQuiz'
+import LiveAdminAnalysisPanel from '../../components/live/LiveAdminAnalysisPanel'
 import { supabaseConfigured } from '../../services/supabase'
 
 const PIN_STORAGE_KEY = 'aqqa_live_admin_pin'
 
-function roleLabel(role) {
-  return role === 'father' ? 'Father' : 'Mother'
-}
-
 export default function LiveAdminAnalysisPage() {
-  const [pin] = useState(() => {
+  const pin = (() => {
     try {
       return sessionStorage.getItem(PIN_STORAGE_KEY) || ''
     } catch {
       return ''
     }
-  })
-  const [data, setData] = useState(null)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(true)
-  const { rows: questionRows } = useLiveQuizQuestions()
+  })()
 
-  const refresh = useCallback(async () => {
-    if (!pin) {
-      setLoading(false)
-      return
-    }
-    const { data: payload, error: err } = await adminLiveQuizDetailedAnalysis(pin)
-    setLoading(false)
-    if (err) {
-      setError(err.message || 'Could not load analysis.')
-      return
-    }
-    setData(payload)
-    setError('')
-  }, [pin])
-
-  useEffect(() => {
-    refresh()
-    const id = window.setInterval(refresh, 5000)
-    return () => window.clearInterval(id)
-  }, [refresh])
-
-  const questions = data?.questions ?? []
+  if (pin) {
+    return <Navigate to="/live/admin" replace state={{ tab: 'analysis' }} />
+  }
 
   return (
-    <div className="login-page live-page">
-      <div className="login-card live-card live-card--analysis">
+    <div className="login-page live-page live-page--admin-wide">
+      <div className="login-card live-card live-card--admin live-card--analysis">
         <img
           src={`${import.meta.env.BASE_URL}aqqa-logo.png`}
           alt="Al Quran Qirat Academy"
@@ -61,13 +28,7 @@ export default function LiveAdminAnalysisPage() {
         />
         <h1 className="login-brand">{APP_NAME}</h1>
         <p className="login-tagline">{APP_TAGLINE}</p>
-        <h2 className="login-portal">Live session — Full analysis</h2>
-
-        {!pin && (
-          <p className="login-error" role="alert">
-            Open the <Link to="/live/admin">admin controls</Link> and enter the host PIN first.
-          </p>
-        )}
+        <h2 className="login-portal">Live session — Analysis</h2>
 
         {!supabaseConfigured && (
           <p className="login-error" role="alert">
@@ -75,101 +36,10 @@ export default function LiveAdminAnalysisPage() {
           </p>
         )}
 
-        {loading && pin && <p className="live-muted">Loading analysis…</p>}
-        {error && (
-          <p className="login-error" role="alert">
-            {error}
-          </p>
-        )}
-
-        {data && (
-          <div className="live-analysis-summary">
-            <p>
-              <strong>{Number(data.total_participants) || 0}</strong> families joined ·{' '}
-              <strong>{Number(data.total_votes) || 0}</strong> total answers recorded
-            </p>
-          </div>
-        )}
-
-        {questions.map((block) => {
-          const qNum = block.question_number
-          const qMeta = getQuestionFromList(questionRows, qNum)
-          const title = qMeta?.title ?? `Question ${qNum}`
-          const counts = block.option_counts || [0, 0, 0]
-          const responses = block.responses || []
-          const optionLabels = qMeta?.options?.length
-            ? qMeta.options
-            : ['Answer 1', 'Answer 2', 'Answer 3'].slice(0, counts.length)
-
-          return (
-            <section key={qNum} className="live-analysis-question">
-              <h3 className="live-analysis-q-title">{title}</h3>
-              <p className="live-muted">
-                {Number(block.total_answers) || 0} answers across all rounds
-              </p>
-              <ul className="live-stats-votes live-analysis-votes">
-                {optionLabels.map((label, idx) => {
-                  const n = Number(counts[idx]) || 0
-                  const total = Number(block.total_answers) || 0
-                  const pct = total > 0 ? Math.round((n / total) * 100) : 0
-                  return (
-                    <li key={label}>
-                      <span className="live-stats-option-label">
-                        {idx + 1}. {label}
-                      </span>
-                      <span className="live-stats-option-count">
-                        {n} ({pct}%)
-                      </span>
-                      <div className="live-stats-bar-wrap">
-                        <div
-                          className="live-stats-bar"
-                          style={{ width: total > 0 ? `${pct}%` : 0 }}
-                        />
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
-
-              {responses.length > 0 ? (
-                <table className="live-analysis-table">
-                  <thead>
-                    <tr>
-                      <th>Child</th>
-                      <th>Parent</th>
-                      <th>Answer</th>
-                      <th>When</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {responses.map((row) => (
-                      <tr key={`${row.round_id}-${row.participant_id}`}>
-                        <td>{row.kid_name}</td>
-                        <td>{roleLabel(row.parent_role)}</td>
-                        <td>
-                          {row.option_number}. {getFullOptionLabel(qMeta, row.option_number)}
-                        </td>
-                        <td>
-                          {row.answered_at
-                            ? new Date(row.answered_at).toLocaleString()
-                            : '—'}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="live-muted">No answers yet for this question.</p>
-              )}
-            </section>
-          )
-        })}
-
-        <div className="live-admin-nav">
-          <Link to="/live/admin" className="btn ghost">
-            ← Back to host controls
-          </Link>
-        </div>
+        <p className="live-muted">
+          Open <Link to="/live/admin">admin controls</Link> and enter the host PIN to view analysis
+          in the Analysis tab.
+        </p>
       </div>
     </div>
   )
