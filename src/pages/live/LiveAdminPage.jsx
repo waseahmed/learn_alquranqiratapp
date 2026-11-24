@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { APP_NAME, APP_TAGLINE } from '../../config'
 import { LIVE_QUIZ_QUESTIONS } from '../../data/liveQuizQuestions'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
 import {
   adminListParticipants,
   adminLiveQuizStats,
+  adminRemoveParticipant,
   adminShowOption,
   adminShowWait,
   subscribeLiveQuizVotes,
 } from '../../services/liveQuiz'
 import { supabaseConfigured } from '../../services/supabase'
+import { formatIdleSince } from '../../utils/formatIdle'
 
 const PIN_STORAGE_KEY = 'aqqa_live_admin_pin'
 
@@ -83,6 +86,7 @@ export default function LiveAdminPage() {
   const [busy, setBusy] = useState(false)
   const [participants, setParticipants] = useState([])
   const [stats, setStats] = useState(null)
+  const [now, setNow] = useState(() => Date.now())
 
   const display = useLiveQuizDisplay()
 
@@ -122,6 +126,23 @@ export default function LiveAdminPage() {
   useEffect(() => {
     refreshStats()
   }, [display.roundId, display.displayPhase, refreshStats])
+
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(Date.now()), 5000)
+    return () => window.clearInterval(id)
+  }, [])
+
+  async function removeParticipant(id) {
+    if (!window.confirm('Remove this family from the live session?')) return
+    setActionError('')
+    const { error } = await adminRemoveParticipant(pin, id)
+    if (error) {
+      setActionError(error.message || 'Could not remove participant.')
+      return
+    }
+    refreshParticipants()
+    refreshStats()
+  }
 
   function handleUnlock(e) {
     e.preventDefault()
@@ -267,16 +288,56 @@ export default function LiveAdminPage() {
               </p>
             )}
 
-            <details className="live-participants">
-              <summary>Joined ({participants.length})</summary>
-              <ul className="live-participants-list">
-                {participants.map((p) => (
-                  <li key={p.id}>
-                    {p.kid_name} — {p.parent_role === 'father' ? 'Father' : 'Mother'}
-                  </li>
-                ))}
+            <section className="live-roster" aria-labelledby="live-roster-heading">
+              <h3 id="live-roster-heading" className="live-stats-heading">
+                Families online ({participants.length})
+              </h3>
+              <p className="live-muted live-roster-hint">
+                Idle status uses last activity on the parent screen. Remove entries that
+                look abandoned.
+              </p>
+              <ul className="live-roster-list">
+                {participants.map((p) => {
+                  const idle = formatIdleSince(p.last_seen_at, now)
+                  return (
+                    <li
+                      key={p.id}
+                      className={`live-roster-row ${idle.warn ? 'live-roster-row--warn' : ''}`}
+                    >
+                      <div className="live-roster-info">
+                        <strong>{p.kid_name}</strong>
+                        <span className="live-muted">
+                          {p.parent_role === 'father' ? 'Father' : 'Mother'} · joined{' '}
+                          {new Date(p.created_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                        <span
+                          className={`live-roster-status ${idle.idle ? 'live-roster-status--idle' : 'live-roster-status--active'}`}
+                        >
+                          {idle.label}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn ghost live-roster-remove"
+                        onClick={() => removeParticipant(p.id)}
+                        disabled={busy}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  )
+                })}
               </ul>
-            </details>
+            </section>
+
+            <div className="live-admin-nav">
+              <Link to="/live/admin/analysis" className="btn primary">
+                Full analysis by question
+              </Link>
+            </div>
 
             <button type="button" className="btn ghost" onClick={handleLock}>
               Lock host screen

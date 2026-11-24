@@ -48,10 +48,11 @@ Public URLs (no Supabase account required for parents):
 ```text
 https://learn.alquranqiratacademy.com/#/live/parent
 https://learn.alquranqiratacademy.com/#/live/admin
+https://learn.alquranqiratacademy.com/#/live/admin/analysis
 ```
 
 1. In Supabase SQL Editor, run `supabase/live_quiz.sql` (after `schema.sql`).
-2. If live quiz was already installed, also run `supabase/live_quiz_migration_v2.sql` (votes + mother/father signup).
+2. If live quiz was already installed, run `supabase/live_quiz_migration_v2.sql` then `supabase/live_quiz_migration_v3.sql` (idle tracking, remove user, full analysis).
 3. Set the host PIN: `update public.live_quiz_secrets set admin_pin = 'your-secret' where id = 1;`
 4. In Supabase **Database → Replication**, ensure `live_quiz_state` and `live_quiz_votes` are enabled for Realtime.
 5. Edit question/option labels in `src/data/liveQuizQuestions.js` if needed.

@@ -61,6 +61,31 @@ export async function adminListParticipants(pin) {
   return { data, error }
 }
 
+export async function sendLiveQuizHeartbeat(participantId) {
+  if (!supabase || !participantId) return { data: null, error: null }
+  const { data, error } = await supabase.rpc('live_quiz_heartbeat', {
+    p_participant_id: participantId,
+  })
+  return { data, error }
+}
+
+export async function adminRemoveParticipant(pin, participantId) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { error } = await supabase.rpc('live_quiz_admin_remove_participant', {
+    p_pin: pin,
+    p_participant_id: participantId,
+  })
+  return { data: null, error }
+}
+
+export async function adminLiveQuizDetailedAnalysis(pin) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { data, error } = await supabase.rpc('live_quiz_admin_detailed_analysis', {
+    p_pin: pin,
+  })
+  return { data, error }
+}
+
 export function subscribeLiveQuizState(onChange) {
   if (!supabase) return () => {}
 

@@ -2189,6 +2189,79 @@ a.btn.primary {
   text-align: left;
 }
 
+.live-card--parent-minimal {
+  position: relative;
+  overflow: hidden;
+  text-align: left;
+}
+
+.live-logo-only {
+  margin-bottom: 20px;
+}
+
+.live-confetti-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 20;
+}
+
+.live-screen--reveal {
+  animation: live-screen-glow 0.65s ease-out;
+}
+
+@keyframes live-screen-glow {
+  0% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+  35% {
+    filter: brightness(1.06);
+    transform: scale(1.01);
+  }
+  100% {
+    filter: brightness(1);
+    transform: scale(1);
+  }
+}
+
+.live-panel--pop-in {
+  animation: live-panel-pop 0.5s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+
+@keyframes live-panel-pop {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.live-option-stagger {
+  animation: live-option-in 0.45s ease-out both;
+}
+
+@keyframes live-option-in {
+  from {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.live-page .live-card--analysis {
+  width: min(720px, 100%);
+  text-align: left;
+}
+
 .live-page .live-card--admin {
   width: min(640px, 100%);
   text-align: left;
@@ -2482,14 +2555,120 @@ a.btn.primary {
   transition: width 0.35s ease;
 }
 
-.live-participants {
-  margin: 16px 0;
-  font-size: 14px;
+.live-roster {
+  margin: 18px 0;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--soft);
 }
 
-.live-participants-list {
-  margin: 8px 0 0;
-  padding-left: 18px;
-  max-height: 160px;
+.live-roster-hint {
+  margin: 0 0 10px;
+  font-size: 13px;
+}
+
+.live-roster-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
   overflow: auto;
+}
+
+.live-roster-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+
+.live-roster-row--warn {
+  border-color: rgba(168, 73, 62, 0.45);
+  background: rgba(168, 73, 62, 0.04);
+}
+
+.live-roster-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.live-roster-status {
+  font-size: 12px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.live-roster-status--active {
+  color: var(--green);
+}
+
+.live-roster-status--idle {
+  color: var(--muted);
+}
+
+.live-roster-remove {
+  flex: 0 0 auto;
+  font-size: 12px;
+  padding: 6px 10px;
+}
+
+.live-admin-nav {
+  margin: 14px 0 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.live-admin-nav .btn {
+  flex: 1 1 auto;
+}
+
+.live-analysis-summary {
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  background: var(--soft);
+  border-radius: 10px;
+}
+
+.live-analysis-question {
+  margin-bottom: 22px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid var(--line);
+}
+
+.live-analysis-q-title {
+  margin: 0 0 6px;
+  color: var(--green);
+}
+
+.live-analysis-votes {
+  margin-bottom: 12px;
+}
+
+.live-analysis-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.live-analysis-table th,
+.live-analysis-table td {
+  border: 1px solid var(--line);
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.live-analysis-table th {
+  background: var(--soft);
+  font-weight: 600;
 }

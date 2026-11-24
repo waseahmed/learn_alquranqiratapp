@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { APP_NAME, APP_TAGLINE } from '../../config'
+import ConfettiBurst from '../../components/live/ConfettiBurst'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
+import { useParticipantHeartbeat } from '../../hooks/useParticipantHeartbeat'
 import { joinLiveQuiz, submitLiveQuizVote } from '../../services/liveQuiz'
 import { supabaseConfigured } from '../../services/supabase'
 
@@ -20,7 +21,7 @@ function roleLabel(role) {
   return role === 'father' ? 'Father' : 'Mother'
 }
 
-function LiveScreen({ participant }) {
+function LiveScreen({ participant, onAnswerConfetti }) {
   const {
     displayPhase,
     question,
@@ -34,11 +35,21 @@ function LiveScreen({ participant }) {
   const [votedOption, setVotedOption] = useState(null)
   const [voteError, setVoteError] = useState('')
   const [voteBusy, setVoteBusy] = useState(false)
+  const [revealAnim, setRevealAnim] = useState(false)
+
+  useParticipantHeartbeat(participant.id)
 
   useEffect(() => {
     setVotedOption(null)
     setVoteError('')
   }, [roundId])
+
+  useEffect(() => {
+    if (!roundId || displayPhase !== 'question') return undefined
+    setRevealAnim(true)
+    const t = window.setTimeout(() => setRevealAnim(false), 700)
+    return () => window.clearTimeout(t)
+  }, [roundId, displayPhase])
 
   async function handleVote(optionNumber) {
     if (displayPhase !== 'question' || voteBusy || votedOption) return
@@ -51,6 +62,7 @@ function LiveScreen({ participant }) {
       return
     }
     setVotedOption(optionNumber)
+    onAnswerConfetti()
   }
 
   if (loading) {
@@ -69,7 +81,7 @@ function LiveScreen({ participant }) {
     votedOption && question ? question.options[votedOption - 1] : null
 
   return (
-    <div className="live-screen">
+    <div className={`live-screen ${revealAnim ? 'live-screen--reveal' : ''}`}>
       <p className="live-welcome">
         <strong>{participant.kidName}</strong> ({roleLabel(participant.parentRole)})
       </p>
@@ -82,7 +94,7 @@ function LiveScreen({ participant }) {
       )}
 
       {displayPhase === 'question' && question && (
-        <div className="live-panel live-panel--active">
+        <div key={roundId} className="live-panel live-panel--active live-panel--pop-in">
           <p className="live-question-label">{question.title}</p>
           <p className="live-muted live-pick-hint">Tap your answer</p>
           <div className="live-parent-options" role="group" aria-label="Answer choices">
@@ -93,7 +105,8 @@ function LiveScreen({ participant }) {
                 <button
                   key={optionNum}
                   type="button"
-                  className={`btn live-parent-option ${isSelected ? 'primary' : 'ghost'}`}
+                  className={`btn live-parent-option live-option-stagger ${isSelected ? 'primary' : 'ghost'}`}
+                  style={{ animationDelay: `${idx * 80}ms` }}
                   onClick={() => handleVote(optionNum)}
                   disabled={voteBusy || Boolean(votedOption)}
                 >
@@ -145,6 +158,7 @@ export default function LiveParentPage() {
   const [parentRole, setParentRole] = useState('mother')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [confetti, setConfetti] = useState(false)
 
   useEffect(() => {
     if (participant) {
@@ -170,6 +184,7 @@ export default function LiveParentPage() {
       kidName: kidName.trim(),
       parentRole,
     })
+    setConfetti(true)
   }
 
   function handleLeave() {
@@ -178,17 +193,20 @@ export default function LiveParentPage() {
     setKidName('')
   }
 
+  function triggerAnswerConfetti() {
+    setConfetti(false)
+    window.requestAnimationFrame(() => setConfetti(true))
+  }
+
   return (
     <div className="login-page live-page">
-      <div className="login-card live-card live-card--wide">
+      <div className="login-card live-card live-card--wide live-card--parent-minimal">
+        <ConfettiBurst active={confetti} onDone={() => setConfetti(false)} />
         <img
           src={`${import.meta.env.BASE_URL}aqqa-logo.png`}
           alt="Al Quran Qirat Academy"
-          className="login-logo"
+          className="login-logo live-logo-only"
         />
-        <h1 className="login-brand">{APP_NAME}</h1>
-        <p className="login-tagline">{APP_TAGLINE}</p>
-        <h2 className="login-portal">Live session — Parents</h2>
 
         {!supabaseConfigured && (
           <p className="login-error" role="alert">
@@ -252,7 +270,10 @@ export default function LiveParentPage() {
           </form>
         ) : (
           <>
-            <LiveScreen participant={participant} />
+            <LiveScreen
+              participant={participant}
+              onAnswerConfetti={triggerAnswerConfetti}
+            />
             <button type="button" className="btn ghost live-leave-btn" onClick={handleLeave}>
               Leave session
             </button>
