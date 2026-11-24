@@ -2190,19 +2190,26 @@ a.btn.primary {
 }
 
 .live-page--parent {
-  padding: 12px 16px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  min-height: 100dvh;
+  padding: 8px 12px 16px;
 }
 
 .live-card--parent-minimal {
   position: relative;
   overflow: hidden;
   text-align: left;
-  padding: 14px 16px 16px;
+  width: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 10px 14px 14px;
 }
 
 .live-page--parent .live-logo-only {
-  width: min(140px, 42%);
-  margin: 0 auto 8px;
+  width: min(128px, 40%);
+  margin: 0 auto 6px;
+  display: block;
 }
 
 .live-page--parent .live-join-form {
@@ -2210,7 +2217,12 @@ a.btn.primary {
 }
 
 .live-page--parent .live-screen {
-  margin-top: 4px;
+  margin-top: 0;
+}
+
+.live-page--parent .live-welcome {
+  margin: 0 0 8px;
+  font-size: 14px;
 }
 
 .live-page--parent .live-panel {
