@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { getQuestionFromList } from '../../data/liveQuizQuestions'
 import LiveAdminAnalysisPanel from '../../components/live/LiveAdminAnalysisPanel'
@@ -19,8 +19,18 @@ import { supabaseConfigured } from '../../services/supabase'
 
 const PIN_STORAGE_KEY = 'aqqa_live_admin_pin'
 const SENT_QUESTIONS_KEY = 'aqqa_live_sent_questions'
+const SUPPRESS_SEND_TICKS_KEY = 'aqqa_live_suppress_send_ticks'
+
+function readSuppressSendTicks() {
+  try {
+    return sessionStorage.getItem(SUPPRESS_SEND_TICKS_KEY) === '1'
+  } catch {
+    return false
+  }
+}
 
 function readSentQuestionSet() {
+  if (readSuppressSendTicks()) return new Set()
   try {
     const raw = sessionStorage.getItem(SENT_QUESTIONS_KEY)
     if (!raw) return new Set()
@@ -129,7 +139,10 @@ export default function LiveAdminPage() {
   const location = useLocation()
   const initialTab = location.state?.tab === 'analysis' ? 'analysis' : 'host'
   const [tab, setTab] = useState(initialTab)
+  const [suppressSendTicks, setSuppressSendTicks] = useState(readSuppressSendTicks)
   const [sentQuestionNums, setSentQuestionNums] = useState(readSentQuestionSet)
+  const [sendRowsRevision, setSendRowsRevision] = useState(0)
+  const lastFreshRoundRef = useRef(null)
 
   const display = useLiveQuizDisplay()
   const { rows: questionRows, questions: sendableQuestions, refresh: refreshQuestions } =
@@ -172,6 +185,27 @@ export default function LiveAdminPage() {
     refreshStats()
   }, [display.roundId, display.displayPhase, refreshStats])
 
+  /** When server is reset (new round, no answers), hide all ✓ above Send. */
+  useEffect(() => {
+    if (!stats?.round_id) return
+    const waiting =
+      stats.phase === 'waiting' && (stats.question_number == null || stats.question_number === null)
+    const noAnswers = Number(stats.answered_count) === 0
+    if (!waiting || !noAnswers) return
+    if (lastFreshRoundRef.current === stats.round_id) return
+    lastFreshRoundRef.current = stats.round_id
+    sessionStorage.setItem(SUPPRESS_SEND_TICKS_KEY, '1')
+    sessionStorage.removeItem(SENT_QUESTIONS_KEY)
+    setSuppressSendTicks(true)
+    setSentQuestionNums(new Set())
+    setSendRowsRevision((v) => v + 1)
+  }, [
+    stats?.round_id,
+    stats?.phase,
+    stats?.question_number,
+    stats?.answered_count,
+  ])
+
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 5000)
     return () => window.clearInterval(id)
@@ -197,6 +231,12 @@ export default function LiveAdminPage() {
   }
 
   function markQuestionSent(questionNumber) {
+    try {
+      sessionStorage.removeItem(SUPPRESS_SEND_TICKS_KEY)
+    } catch {
+      /* ignore */
+    }
+    setSuppressSendTicks(false)
     setSentQuestionNums((prev) => {
       const next = new Set(prev)
       next.add(questionNumber)
@@ -206,12 +246,20 @@ export default function LiveAdminPage() {
   }
 
   function resetSentQuestionMarks() {
-    sessionStorage.removeItem(SENT_QUESTIONS_KEY)
+    try {
+      sessionStorage.setItem(SUPPRESS_SEND_TICKS_KEY, '1')
+      sessionStorage.removeItem(SENT_QUESTIONS_KEY)
+    } catch {
+      /* ignore */
+    }
+    setSuppressSendTicks(true)
     setSentQuestionNums(new Set())
+    setSendRowsRevision((v) => v + 1)
   }
 
   function handleSessionFreshStart() {
     resetSentQuestionMarks()
+    lastFreshRoundRef.current = null
     setStats((prev) => {
       if (!prev) return prev
       return {
@@ -367,12 +415,12 @@ export default function LiveAdminPage() {
                   Show “wait for next one” to everyone
                 </button>
 
-                <div className="live-admin-questions">
+                <div className="live-admin-questions" key={`send-rows-${sendRowsRevision}`}>
                   {sendableQuestions.map((q) => {
                     const isLive =
                       display.displayPhase === 'question' &&
                       display.questionNumber === q.number
-                    const wasSent = sentQuestionNums.has(q.number)
+                    const wasSent = !suppressSendTicks && sentQuestionNums.has(q.number)
                     return (
                       <div
                         key={q.number}
