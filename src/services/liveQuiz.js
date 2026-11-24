@@ -1,3 +1,4 @@
+import { DEFAULT_LIVE_QUESTIONS } from '../data/liveQuizQuestions'
 import { supabase } from './supabase'
 
 export async function fetchLiveQuizState() {
@@ -84,6 +85,44 @@ export async function adminLiveQuizDetailedAnalysis(pin) {
     p_pin: pin,
   })
   return { data, error }
+}
+
+export async function fetchLiveQuizQuestions() {
+  if (!supabase) return { data: DEFAULT_LIVE_QUESTIONS, error: null }
+  const { data, error } = await supabase.rpc('live_quiz_get_questions')
+  return { data, error }
+}
+
+export async function adminSaveLiveQuizQuestions(pin, questions) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { data, error } = await supabase.rpc('live_quiz_admin_save_questions', {
+    p_pin: pin,
+    p_questions: questions,
+  })
+  return { data, error }
+}
+
+export async function adminClearLiveQuizAnswers(pin) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { error } = await supabase.rpc('live_quiz_admin_clear_answers', { p_pin: pin })
+  return { data: null, error }
+}
+
+export function subscribeLiveQuizQuestions(onChange) {
+  if (!supabase) return () => {}
+
+  const channel = supabase
+    .channel('live-quiz-questions')
+    .on(
+      'postgres_changes',
+      { event: '*', schema: 'public', table: 'live_quiz_questions' },
+      () => onChange(),
+    )
+    .subscribe()
+
+  return () => {
+    supabase.removeChannel(channel)
+  }
 }
 
 export function subscribeLiveQuizState(onChange) {

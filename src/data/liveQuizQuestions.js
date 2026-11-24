@@ -1,34 +1,79 @@
-/** Edit labels here to match your live session content. */
+/** Default labels when Supabase questions are not loaded yet. */
 export const LIVE_QUIZ_TIMER_SECONDS = 10
 
-export const LIVE_QUIZ_QUESTIONS = [
+export const DEFAULT_LIVE_QUESTIONS = [
   {
-    number: 1,
+    question_number: 1,
     title: 'Question 1',
-    options: ['Option 1', 'Option 2', 'Option 3'],
+    option_1_text: 'Option 1',
+    option_2_text: 'Option 2',
+    option_3_text: 'Option 3',
+    option_count: 3,
   },
   {
-    number: 2,
+    question_number: 2,
     title: 'Question 2',
-    options: ['Option 1', 'Option 2', 'Option 3'],
+    option_1_text: 'Option 1',
+    option_2_text: 'Option 2',
+    option_3_text: 'Option 3',
+    option_count: 3,
   },
   {
-    number: 3,
+    question_number: 3,
     title: 'Question 3',
-    options: ['Option 1', 'Option 2', 'Option 3'],
+    option_1_text: 'Option 1',
+    option_2_text: 'Option 2',
+    option_3_text: 'Option 3',
+    option_count: 3,
   },
   {
-    number: 4,
+    question_number: 4,
     title: 'Question 4',
-    options: ['Option 1', 'Option 2', 'Option 3'],
+    option_1_text: 'Option 1',
+    option_2_text: 'Option 2',
+    option_3_text: 'Option 3',
+    option_count: 3,
   },
   {
-    number: 5,
+    question_number: 5,
     title: 'Question 5',
-    options: ['Option 1', 'Option 2', 'Option 3'],
+    option_1_text: 'Option 1',
+    option_2_text: 'Option 2',
+    option_3_text: 'Option 3',
+    option_count: 3,
   },
 ]
 
-export function getQuestion(number) {
-  return LIVE_QUIZ_QUESTIONS.find((q) => q.number === number) ?? null
+export function normalizeQuestion(row) {
+  if (!row) return null
+  const options = []
+  if (row.option_1_text?.trim()) options.push(row.option_1_text.trim())
+  if (row.option_2_text?.trim()) options.push(row.option_2_text.trim())
+  if (row.option_3_text?.trim()) options.push(row.option_3_text.trim())
+  const optionCount = row.option_count ?? options.length
+  return {
+    number: row.question_number,
+    title: row.title || `Question ${row.question_number}`,
+    options,
+    optionCount,
+    /** Shown on parent + admin send buttons during live session */
+    sendLabels: Array.from({ length: optionCount }, (_, i) => String(i + 1)),
+  }
 }
+
+export function getQuestionFromList(list, number) {
+  const row = list?.find((q) => q.question_number === number)
+  return normalizeQuestion(row)
+}
+
+export function getFullOptionLabel(question, optionNumber) {
+  if (!question || !optionNumber) return ''
+  return question.options[optionNumber - 1] ?? `Option ${optionNumber}`
+}
+
+/** @deprecated use getQuestionFromList with DB list */
+export function getQuestion(number) {
+  return getQuestionFromList(DEFAULT_LIVE_QUESTIONS, number)
+}
+
+export const LIVE_QUIZ_QUESTIONS = DEFAULT_LIVE_QUESTIONS.map(normalizeQuestion)

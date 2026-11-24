@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import ConfettiBurst from '../../components/live/ConfettiBurst'
+import { getFullOptionLabel } from '../../data/liveQuizQuestions'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
 import { useParticipantHeartbeat } from '../../hooks/useParticipantHeartbeat'
 import { joinLiveQuiz, submitLiveQuizVote } from '../../services/liveQuiz'
@@ -78,7 +79,7 @@ function LiveScreen({ participant, onAnswerConfetti }) {
   }
 
   const votedLabel =
-    votedOption && question ? question.options[votedOption - 1] : null
+    votedOption && question ? getFullOptionLabel(question, votedOption) : null
 
   return (
     <div className={`live-screen ${revealAnim ? 'live-screen--reveal' : ''}`}>
@@ -98,17 +99,18 @@ function LiveScreen({ participant, onAnswerConfetti }) {
           <p className="live-question-label">{question.title}</p>
           <p className="live-muted live-pick-hint">Tap your answer</p>
           <div className="live-parent-options" role="group" aria-label="Answer choices">
-            {question.options.map((label, idx) => {
+            {question.sendLabels.map((label, idx) => {
               const optionNum = idx + 1
               const isSelected = votedOption === optionNum
               return (
                 <button
                   key={optionNum}
                   type="button"
-                  className={`btn live-parent-option live-option-stagger ${isSelected ? 'primary' : 'ghost'}`}
+                  className={`btn live-parent-option live-option-stagger live-send-num ${isSelected ? 'primary' : 'ghost'}`}
                   style={{ animationDelay: `${idx * 80}ms` }}
                   onClick={() => handleVote(optionNum)}
                   disabled={voteBusy || Boolean(votedOption)}
+                  aria-label={`Answer ${optionNum}: ${getFullOptionLabel(question, optionNum)}`}
                 >
                   {label}
                 </button>
@@ -117,7 +119,7 @@ function LiveScreen({ participant, onAnswerConfetti }) {
           </div>
           {votedLabel && (
             <p className="live-vote-confirm" role="status">
-              Your answer: <strong>{votedLabel}</strong>
+              Your answer ({votedOption}): <strong>{votedLabel}</strong>
             </p>
           )}
           {voteError && (

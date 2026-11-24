@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { APP_NAME, APP_TAGLINE } from '../../config'
-import { LIVE_QUIZ_QUESTIONS } from '../../data/liveQuizQuestions'
+import { getQuestionFromList } from '../../data/liveQuizQuestions'
+import LiveQuizConfig from '../../components/live/LiveQuizConfig'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
+import { useLiveQuizQuestions } from '../../hooks/useLiveQuizQuestions'
 import {
   adminListParticipants,
   adminLiveQuizStats,
@@ -27,17 +29,23 @@ function readStoredPin() {
 function LiveStatsOverview({ stats, question }) {
   if (!stats) return null
 
-  const counts = stats.option_counts || [0, 0, 0]
+  const counts = (stats.option_counts || [0, 0, 0]).map(Number)
   const totalJoined = Number(stats.total_joined) || 0
   const answered = Number(stats.answered_count) || 0
   const notAnswered = Math.max(0, totalJoined - answered)
 
-  const options = question?.options ?? ['Option 1', 'Option 2', 'Option 3']
+  const optionLabels = question?.options?.length
+    ? question.options
+    : ['Answer 1', 'Answer 2', 'Answer 3'].slice(0, 3)
   return (
     <section className="live-stats-panel" aria-labelledby="live-stats-heading">
       <h3 id="live-stats-heading" className="live-stats-heading">
         Answer overview
-        {stats.question_number ? ` — Question ${stats.question_number}` : ''}
+        {question?.title
+          ? ` — ${question.title}`
+          : stats.question_number
+            ? ` — Question ${stats.question_number}`
+            : ''}
       </h3>
       <ul className="live-stats-summary">
         <li>
@@ -54,12 +62,14 @@ function LiveStatsOverview({ stats, question }) {
         </li>
       </ul>
       <ul className="live-stats-votes">
-        {options.map((label, idx) => {
+        {optionLabels.map((label, idx) => {
           const n = Number(counts[idx]) || 0
           const pct = answered > 0 ? Math.round((n / answered) * 100) : 0
           return (
-            <li key={label}>
-              <span className="live-stats-option-label">{label}</span>
+            <li key={`${idx}-${label}`}>
+              <span className="live-stats-option-label">
+                {idx + 1}. {label}
+              </span>
               <span className="live-stats-option-count">
                 {n} vote{n === 1 ? '' : 's'}
                 {answered > 0 ? ` · ${pct}%` : ''}
@@ -89,10 +99,12 @@ export default function LiveAdminPage() {
   const [now, setNow] = useState(() => Date.now())
 
   const display = useLiveQuizDisplay()
+  const { rows: questionRows, questions: sendableQuestions, refresh: refreshQuestions } =
+    useLiveQuizQuestions()
 
   const activeQuestion = useMemo(
-    () => LIVE_QUIZ_QUESTIONS.find((q) => q.number === display.questionNumber) ?? null,
-    [display.questionNumber],
+    () => getQuestionFromList(questionRows, display.questionNumber),
+    [questionRows, display.questionNumber],
   )
 
   const refreshStats = useCallback(async () => {
@@ -186,9 +198,7 @@ export default function LiveAdminPage() {
 
   const preview = display
   const statsQuestion =
-    activeQuestion ||
-    LIVE_QUIZ_QUESTIONS.find((q) => q.number === stats?.question_number) ||
-    null
+    activeQuestion || getQuestionFromList(questionRows, stats?.question_number) || null
 
   return (
     <div className="login-page live-page">
@@ -231,6 +241,17 @@ export default function LiveAdminPage() {
           </form>
         ) : (
           <>
+            <LiveQuizConfig
+              pin={pin}
+              rows={questionRows}
+              disabled={busy || !supabaseConfigured}
+              onSaved={() => {
+                refreshQuestions()
+                refreshStats()
+              }}
+              onCleared={() => refreshStats()}
+            />
+
             <LiveStatsOverview stats={stats} question={statsQuestion} />
 
             <div className="live-admin-preview" aria-live="polite">
@@ -254,12 +275,12 @@ export default function LiveAdminPage() {
             </button>
 
             <div className="live-admin-questions">
-              {LIVE_QUIZ_QUESTIONS.map((q) => (
+              {sendableQuestions.map((q) => (
                 <div key={q.number} className="live-admin-question-row">
                   <h3 className="live-admin-question-title">{q.title}</h3>
                   <div className="live-admin-options-inline">
                     <span className="live-send-label">Send:</span>
-                    {q.options.map((label, idx) => {
+                    {q.sendLabels.map((label, idx) => {
                       const optionNum = idx + 1
                       const isLive =
                         display.questionNumber === q.number &&
@@ -268,10 +289,10 @@ export default function LiveAdminPage() {
                         <button
                           key={optionNum}
                           type="button"
-                          className={`btn ${isLive ? 'primary' : 'ghost'} live-option-btn-inline`}
+                          className={`btn ${isLive ? 'primary' : 'ghost'} live-option-btn-inline live-send-num`}
                           onClick={() => showOption(q.number, optionNum)}
                           disabled={busy || !supabaseConfigured}
-                          title={`Open ${q.title} — parents see all choices including ${label}`}
+                          title={`Send ${q.title} (${q.options[idx]})`}
                         >
                           {label}
                         </button>

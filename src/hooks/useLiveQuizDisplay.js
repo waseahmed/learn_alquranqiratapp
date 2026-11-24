@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
-import { LIVE_QUIZ_TIMER_SECONDS, getQuestion } from '../data/liveQuizQuestions'
+import { LIVE_QUIZ_TIMER_SECONDS, getQuestionFromList } from '../data/liveQuizQuestions'
 import { fetchLiveQuizState, subscribeLiveQuizState } from '../services/liveQuiz'
+import { useLiveQuizQuestions } from './useLiveQuizQuestions'
 
 function msRemaining(state, now) {
   if (!state || state.phase !== 'question') return 0
@@ -14,6 +15,7 @@ function msRemaining(state, now) {
  * Shared display phase for parents and admin: waiting | question | timed_out
  */
 export function useLiveQuizDisplay() {
+  const { rows: questionRows } = useLiveQuizQuestions()
   const [state, setState] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [now, setNow] = useState(() => Date.now())
@@ -41,7 +43,7 @@ export function useLiveQuizDisplay() {
 
   const display = useMemo(() => {
     const timerSeconds = state?.timer_seconds ?? LIVE_QUIZ_TIMER_SECONDS
-    const question = getQuestion(state?.question_number)
+    const question = getQuestionFromList(questionRows, state?.question_number)
     const remainingMs = msRemaining(state, now)
     let displayPhase = 'waiting'
     if (state?.phase === 'question') {
@@ -63,7 +65,7 @@ export function useLiveQuizDisplay() {
       remainingSec: Math.ceil(remainingMs / 1000),
       timerSeconds,
     }
-  }, [state, now])
+  }, [state, now, questionRows])
 
   return { ...display, loadError, loading: state === null && !loadError }
 }

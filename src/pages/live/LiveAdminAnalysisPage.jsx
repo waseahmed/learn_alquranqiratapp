@@ -1,17 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { APP_NAME, APP_TAGLINE } from '../../config'
-import { LIVE_QUIZ_QUESTIONS } from '../../data/liveQuizQuestions'
+import {
+  getFullOptionLabel,
+  getQuestionFromList,
+} from '../../data/liveQuizQuestions'
+import { useLiveQuizQuestions } from '../../hooks/useLiveQuizQuestions'
 import { adminLiveQuizDetailedAnalysis } from '../../services/liveQuiz'
 import { supabaseConfigured } from '../../services/supabase'
 
 const PIN_STORAGE_KEY = 'aqqa_live_admin_pin'
-
-function optionLabel(questionNumber, optionNumber) {
-  const q = LIVE_QUIZ_QUESTIONS.find((item) => item.number === questionNumber)
-  if (!q || !optionNumber) return `Option ${optionNumber}`
-  return q.options[optionNumber - 1] ?? `Option ${optionNumber}`
-}
 
 function roleLabel(role) {
   return role === 'father' ? 'Father' : 'Mother'
@@ -28,6 +26,7 @@ export default function LiveAdminAnalysisPage() {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const { rows: questionRows } = useLiveQuizQuestions()
 
   const refresh = useCallback(async () => {
     if (!pin) {
@@ -94,10 +93,13 @@ export default function LiveAdminAnalysisPage() {
 
         {questions.map((block) => {
           const qNum = block.question_number
-          const qMeta = LIVE_QUIZ_QUESTIONS.find((q) => q.number === qNum)
+          const qMeta = getQuestionFromList(questionRows, qNum)
           const title = qMeta?.title ?? `Question ${qNum}`
           const counts = block.option_counts || [0, 0, 0]
           const responses = block.responses || []
+          const optionLabels = qMeta?.options?.length
+            ? qMeta.options
+            : ['Answer 1', 'Answer 2', 'Answer 3'].slice(0, counts.length)
 
           return (
             <section key={qNum} className="live-analysis-question">
@@ -106,18 +108,23 @@ export default function LiveAdminAnalysisPage() {
                 {Number(block.total_answers) || 0} answers across all rounds
               </p>
               <ul className="live-stats-votes live-analysis-votes">
-                {(qMeta?.options ?? ['Option 1', 'Option 2', 'Option 3']).map((label, idx) => {
+                {optionLabels.map((label, idx) => {
                   const n = Number(counts[idx]) || 0
                   const total = Number(block.total_answers) || 0
                   const pct = total > 0 ? Math.round((n / total) * 100) : 0
                   return (
                     <li key={label}>
-                      <span className="live-stats-option-label">{label}</span>
+                      <span className="live-stats-option-label">
+                        {idx + 1}. {label}
+                      </span>
                       <span className="live-stats-option-count">
                         {n} ({pct}%)
                       </span>
                       <div className="live-stats-bar-wrap">
-                        <div className="live-stats-bar" style={{ width: total > 0 ? `${pct}%` : 0 }} />
+                        <div
+                          className="live-stats-bar"
+                          style={{ width: total > 0 ? `${pct}%` : 0 }}
+                        />
                       </div>
                     </li>
                   )
@@ -139,7 +146,9 @@ export default function LiveAdminAnalysisPage() {
                       <tr key={`${row.round_id}-${row.participant_id}`}>
                         <td>{row.kid_name}</td>
                         <td>{roleLabel(row.parent_role)}</td>
-                        <td>{optionLabel(qNum, row.option_number)}</td>
+                        <td>
+                          {row.option_number}. {getFullOptionLabel(qMeta, row.option_number)}
+                        </td>
                         <td>
                           {row.answered_at
                             ? new Date(row.answered_at).toLocaleString()
