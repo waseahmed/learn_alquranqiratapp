@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useLocation } from 'react-router-dom'
-import { APP_NAME, APP_TAGLINE } from '../../config'
 import { getQuestionFromList } from '../../data/liveQuizQuestions'
 import LiveAdminAnalysisPanel from '../../components/live/LiveAdminAnalysisPanel'
+import LiveAdminHeader from '../../components/live/LiveAdminHeader'
 import LiveQuizConfig from '../../components/live/LiveQuizConfig'
 import { LiveUsersDashboard, LiveUsersRoster } from '../../components/live/LiveUsersPanel'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
@@ -215,14 +215,7 @@ export default function LiveAdminPage() {
   return (
     <div className="login-page live-page live-page--admin-wide">
       <div className="login-card live-card live-card--admin live-card--admin-tabs">
-        <img
-          src={`${import.meta.env.BASE_URL}aqqa-logo.png`}
-          alt="Al Quran Qirat Academy"
-          className="login-logo"
-        />
-        <h1 className="login-brand">{APP_NAME}</h1>
-        <p className="login-tagline">{APP_TAGLINE}</p>
-        <h2 className="login-portal">Live session — Admin</h2>
+        <LiveAdminHeader />
 
         {!supabaseConfigured && (
           <p className="login-error" role="alert">
@@ -307,10 +300,20 @@ export default function LiveAdminPage() {
                       display.displayPhase !== 'waiting'
                     return (
                       <div key={q.number} className="live-admin-question-row">
-                        <h3 className="live-admin-question-title">{q.title}</h3>
-                        <p className="live-admin-q-meta live-muted">
-                          {q.optionCount} choice{q.optionCount === 1 ? '' : 's'} on parent screen
-                        </p>
+                        <div className="live-admin-question-body">
+                          <h3 className="live-admin-question-title">{q.title}</h3>
+                          <ol className="live-admin-option-preview">
+                            {q.options.map((label, idx) => (
+                              <li key={idx}>
+                                <span className="live-admin-option-num">{idx + 1}</span>
+                                <span>{label}</span>
+                              </li>
+                            ))}
+                          </ol>
+                          <p className="live-admin-q-meta live-muted">
+                            Parents see numbers 1–{q.optionCount} during the live round.
+                          </p>
+                        </div>
                         <button
                           type="button"
                           className={`btn ${isLive ? 'primary' : 'ghost'} live-send-question-btn`}
