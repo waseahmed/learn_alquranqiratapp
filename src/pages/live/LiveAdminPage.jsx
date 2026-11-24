@@ -210,6 +210,25 @@ export default function LiveAdminPage() {
     setSentQuestionNums(new Set())
   }
 
+  function handleSessionFreshStart() {
+    resetSentQuestionMarks()
+    setStats((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        phase: 'waiting',
+        question_number: null,
+        round_id: null,
+        answered_count: 0,
+        option_counts: [0, 0, 0],
+        host_option: null,
+        answered_participant_ids: [],
+      }
+    })
+    refreshStats()
+    refreshParticipants()
+  }
+
   function handleLock() {
     sessionStorage.removeItem(PIN_STORAGE_KEY)
     resetSentQuestionMarks()
@@ -425,10 +444,7 @@ export default function LiveAdminPage() {
                     refreshQuestions()
                     refreshStats()
                   }}
-                  onCleared={() => {
-                    resetSentQuestionMarks()
-                    refreshStats()
-                  }}
+                  onCleared={handleSessionFreshStart}
                 />
               </div>
             )}

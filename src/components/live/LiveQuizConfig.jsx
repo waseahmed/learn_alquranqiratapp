@@ -17,6 +17,7 @@ export default function LiveQuizConfig({ pin, rows, onSaved, onCleared, disabled
   const [saveError, setSaveError] = useState('')
   const [saveBusy, setSaveBusy] = useState(false)
   const [clearBusy, setClearBusy] = useState(false)
+  const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
 
   useEffect(() => {
     if (!rows?.length) return
@@ -57,18 +58,12 @@ export default function LiveQuizConfig({ pin, rows, onSaved, onCleared, disabled
     onSaved?.()
   }
 
-  async function handleClearAnswers() {
-    if (
-      !window.confirm(
-        'Clear all parent answers for every question? Families stay joined; you can run a new round.',
-      )
-    ) {
-      return
-    }
+  async function confirmClearAnswers() {
     setSaveError('')
     setClearBusy(true)
     const { error } = await adminClearLiveQuizAnswers(pin)
     setClearBusy(false)
+    setClearConfirmOpen(false)
     if (error) {
       setSaveError(error.message || 'Could not clear answers.')
       return
@@ -89,11 +84,50 @@ export default function LiveQuizConfig({ pin, rows, onSaved, onCleared, disabled
       <button
         type="button"
         className="btn ghost live-config-clear"
-        onClick={handleClearAnswers}
+        onClick={() => setClearConfirmOpen(true)}
         disabled={disabled || clearBusy}
+        aria-expanded={clearConfirmOpen}
+        aria-controls="live-config-clear-confirm"
       >
         {clearBusy ? 'Clearing…' : 'Clear all parent answers & start fresh'}
       </button>
+
+      {clearConfirmOpen && (
+        <div
+          id="live-config-clear-confirm"
+          className="live-config-clear-confirm"
+          role="alertdialog"
+          aria-labelledby="live-config-clear-title"
+          aria-describedby="live-config-clear-desc"
+        >
+          <p id="live-config-clear-title" className="live-config-clear-title">
+            Clear everything and start fresh?
+          </p>
+          <p id="live-config-clear-desc" className="live-muted live-config-clear-desc">
+            This deletes all parent answers, resets vote counts, removes every ✓ above Send, and
+            turns off Live on all questions. Families stay joined — you can send questions again
+            from the Host tab.
+          </p>
+          <div className="live-config-clear-actions">
+            <button
+              type="button"
+              className="btn ghost"
+              onClick={() => setClearConfirmOpen(false)}
+              disabled={clearBusy}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn primary"
+              onClick={confirmClearAnswers}
+              disabled={disabled || clearBusy}
+            >
+              {clearBusy ? 'Clearing…' : 'Yes, clear everything'}
+            </button>
+          </div>
+        </div>
+      )}
 
       <form className="live-config-form" onSubmit={handleSave}>
         {draft.map((q) => (

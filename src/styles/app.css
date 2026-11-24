@@ -2784,6 +2784,34 @@ a.btn.primary {
   margin-bottom: 14px;
 }
 
+.live-config-clear-confirm {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border: 1px solid rgba(168, 73, 62, 0.35);
+  border-radius: 12px;
+  background: rgba(168, 73, 62, 0.06);
+  text-align: left;
+}
+
+.live-config-clear-title {
+  margin: 0 0 8px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.live-config-clear-desc {
+  margin: 0 0 14px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.live-config-clear-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
 .live-config-form {
   display: flex;
   flex-direction: column;
