@@ -18,6 +18,26 @@ import {
 import { supabaseConfigured } from '../../services/supabase'
 
 const PIN_STORAGE_KEY = 'aqqa_live_admin_pin'
+const SENT_QUESTIONS_KEY = 'aqqa_live_sent_questions'
+
+function readSentQuestionSet() {
+  try {
+    const raw = sessionStorage.getItem(SENT_QUESTIONS_KEY)
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw)
+    return new Set(Array.isArray(arr) ? arr.map(Number) : [])
+  } catch {
+    return new Set()
+  }
+}
+
+function persistSentQuestionSet(set) {
+  try {
+    sessionStorage.setItem(SENT_QUESTIONS_KEY, JSON.stringify([...set]))
+  } catch {
+    /* ignore */
+  }
+}
 
 const TABS = [
   { id: 'host', label: 'Host' },
@@ -109,6 +129,7 @@ export default function LiveAdminPage() {
   const location = useLocation()
   const initialTab = location.state?.tab === 'analysis' ? 'analysis' : 'host'
   const [tab, setTab] = useState(initialTab)
+  const [sentQuestionNums, setSentQuestionNums] = useState(readSentQuestionSet)
 
   const display = useLiveQuizDisplay()
   const { rows: questionRows, questions: sendableQuestions, refresh: refreshQuestions } =
@@ -175,8 +196,19 @@ export default function LiveAdminPage() {
     setActionError('')
   }
 
+  function markQuestionSent(questionNumber) {
+    setSentQuestionNums((prev) => {
+      const next = new Set(prev)
+      next.add(questionNumber)
+      persistSentQuestionSet(next)
+      return next
+    })
+  }
+
   function handleLock() {
     sessionStorage.removeItem(PIN_STORAGE_KEY)
+    sessionStorage.removeItem(SENT_QUESTIONS_KEY)
+    setSentQuestionNums(new Set())
     setPinUnlocked(false)
     setPin('')
     setPinInput('')
@@ -201,7 +233,20 @@ export default function LiveAdminPage() {
   }
 
   async function sendQuestion(questionNumber) {
-    await runAction(() => adminShowOption(pin, questionNumber, 1))
+    setActionError('')
+    setBusy(true)
+    const { error } = await adminShowOption(pin, questionNumber, 1)
+    setBusy(false)
+    if (error) {
+      setActionError(error.message || 'Action failed.')
+      if (error.message?.toLowerCase().includes('invalid admin pin')) {
+        handleLock()
+      }
+      return
+    }
+    markQuestionSent(questionNumber)
+    refreshParticipants()
+    refreshStats()
   }
 
   async function showWait() {
@@ -211,6 +256,12 @@ export default function LiveAdminPage() {
   const preview = display
   const statsQuestion =
     activeQuestion || getQuestionFromList(questionRows, stats?.question_number) || null
+
+  const answeredParticipantIds = useMemo(() => {
+    const ids = stats?.answered_participant_ids
+    if (!Array.isArray(ids)) return new Set()
+    return new Set(ids.map(String))
+  }, [stats?.answered_participant_ids])
 
   return (
     <div className="login-page live-page live-page--admin-wide">
@@ -298,8 +349,12 @@ export default function LiveAdminPage() {
                     const isLive =
                       display.questionNumber === q.number &&
                       display.displayPhase !== 'waiting'
+                    const wasSent = sentQuestionNums.has(q.number)
                     return (
-                      <div key={q.number} className="live-admin-question-row">
+                      <div
+                        key={q.number}
+                        className={`live-admin-question-row ${wasSent ? 'live-admin-question-row--sent' : ''}`}
+                      >
                         <div className="live-admin-question-body">
                           <h3 className="live-admin-question-title">{q.title}</h3>
                           <ol className="live-admin-option-preview">
@@ -314,14 +369,25 @@ export default function LiveAdminPage() {
                             Parents see numbers 1–{q.optionCount} during the live round.
                           </p>
                         </div>
-                        <button
-                          type="button"
-                          className={`btn ${isLive ? 'primary' : 'ghost'} live-send-question-btn`}
-                          onClick={() => sendQuestion(q.number)}
-                          disabled={busy || !supabaseConfigured}
-                        >
-                          Send
-                        </button>
+                        <div className="live-admin-send-wrap">
+                          {wasSent && (
+                            <span
+                              className="live-admin-sent-badge"
+                              title="You already sent this question this session"
+                              aria-label="Already sent"
+                            >
+                              ✓
+                            </span>
+                          )}
+                          <button
+                            type="button"
+                            className={`btn ${isLive ? 'primary' : 'ghost'} live-send-question-btn`}
+                            onClick={() => sendQuestion(q.number)}
+                            disabled={busy || !supabaseConfigured}
+                          >
+                            {isLive ? 'Live' : 'Send'}
+                          </button>
+                        </div>
                       </div>
                     )
                   })}
@@ -337,6 +403,10 @@ export default function LiveAdminPage() {
                   now={now}
                   onRemove={removeParticipant}
                   busy={busy}
+                  answeredParticipantIds={answeredParticipantIds}
+                  showAnswered={
+                    display.displayPhase === 'question' && Boolean(display.roundId)
+                  }
                 />
               </div>
             )}

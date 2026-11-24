@@ -2524,6 +2524,49 @@ a.btn.primary {
   box-shadow: var(--shadow);
 }
 
+.live-panel--themed.live-panel--active {
+  background: var(--live-panel-bg, #fff);
+  border-color: var(--live-panel-border, var(--green2));
+}
+
+.live-question-label--themed {
+  color: var(--live-accent, var(--green));
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: clamp(17px, 4.2vw, 22px);
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.live-parent-option--themed {
+  background: var(--live-btn-bg, var(--soft));
+  border: 2px solid var(--live-btn-border, var(--line));
+  color: var(--live-btn-text, var(--ink));
+  font-weight: 700;
+}
+
+.live-parent-option--themed:hover:not(:disabled) {
+  border-color: var(--live-accent, var(--green2));
+}
+
+.live-parent-option--themed.live-parent-option--picked {
+  background: var(--live-btn-active-bg, var(--green));
+  border-color: var(--live-btn-active-bg, var(--green));
+  color: var(--live-btn-active-text, #fff);
+}
+
+.live-timer-text--themed {
+  color: var(--live-timer-color, var(--ink));
+}
+
+.live-panel--themed .live-timer-bar {
+  background: linear-gradient(
+    90deg,
+    var(--live-panel-border, var(--green2)),
+    var(--live-accent, var(--gold))
+  );
+}
+
 .live-panel--timeout {
   background: rgba(168, 73, 62, 0.08);
   border-color: rgba(168, 73, 62, 0.35);
@@ -2661,10 +2704,36 @@ a.btn.primary {
   font-size: 12px;
 }
 
+.live-admin-send-wrap {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+.live-admin-sent-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: rgba(30, 96, 57, 0.12);
+  color: var(--green);
+  font-weight: 800;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.live-admin-question-row--sent {
+  border-color: rgba(30, 96, 57, 0.35);
+}
+
 .live-send-question-btn {
   flex: 0 0 auto;
   min-width: 5.5rem;
-  margin-top: 4px;
 }
 
 .live-admin-question-title {
@@ -2902,6 +2971,15 @@ a.btn.primary {
 .live-roster-row--warn {
   border-color: rgba(168, 73, 62, 0.45);
   background: rgba(168, 73, 62, 0.04);
+}
+
+.live-roster-row--answered {
+  border-color: rgba(30, 96, 57, 0.4);
+}
+
+.live-roster-answered {
+  color: var(--green);
+  font-weight: 800;
 }
 
 .live-roster-info {

@@ -39,7 +39,14 @@ export function LiveUsersDashboard({ participants }) {
   )
 }
 
-export function LiveUsersRoster({ participants, now, onRemove, busy }) {
+export function LiveUsersRoster({
+  participants,
+  now,
+  onRemove,
+  busy,
+  answeredParticipantIds = new Set(),
+  showAnswered = false,
+}) {
   return (
     <section className="live-roster" aria-labelledby="live-roster-heading">
       <h3 id="live-roster-heading" className="live-stats-heading">
@@ -54,13 +61,22 @@ export function LiveUsersRoster({ participants, now, onRemove, busy }) {
         <ul className="live-roster-list">
           {participants.map((p) => {
             const idle = formatIdleSince(p.last_seen_at, now)
+            const answered = showAnswered && answeredParticipantIds.has(String(p.id))
             return (
               <li
                 key={p.id}
-                className={`live-roster-row ${idle.warn ? 'live-roster-row--warn' : ''}`}
+                className={`live-roster-row ${idle.warn ? 'live-roster-row--warn' : ''} ${answered ? 'live-roster-row--answered' : ''}`}
               >
                 <div className="live-roster-info">
-                  <strong>{p.kid_name}</strong>
+                  <strong>
+                    {p.kid_name}
+                    {answered && (
+                      <span className="live-roster-answered" title="Answered this round">
+                        {' '}
+                        ✓
+                      </span>
+                    )}
+                  </strong>
                   <span className="live-muted">
                     {p.parent_role === 'father' ? 'Father' : 'Mother'} · joined{' '}
                     {new Date(p.created_at).toLocaleTimeString([], {

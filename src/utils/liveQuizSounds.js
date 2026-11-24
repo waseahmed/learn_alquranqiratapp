@@ -97,3 +97,15 @@ export function playAnswerSound() {
   drumHit(t + 0.36, 0.65)
   hijazNote(HIJAZ[4], t + 0.42, 0.4, 0.52)
 }
+
+/** Final seconds — louder tick (higher pitch on last second). */
+export function playCountdownTickSound(secondsLeft) {
+  const ctx = getCtx()
+  if (!ctx) return
+  unlockLiveQuizAudio()
+  const t = ctx.currentTime
+  const vol = secondsLeft <= 1 ? 0.72 : 0.58
+  drumHit(t, vol * 0.85)
+  const freq = secondsLeft <= 1 ? HIJAZ[6] : secondsLeft === 2 ? HIJAZ[4] : HIJAZ[2]
+  hijazNote(freq, t + 0.05, secondsLeft <= 1 ? 0.2 : 0.12, vol * 0.75)
+}

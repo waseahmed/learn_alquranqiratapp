@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { paletteToCssVars, pickPaletteForRound } from '../../data/liveQuizPalettes'
 import ConfettiBurst from '../../components/live/ConfettiBurst'
 import { getFullOptionLabel } from '../../data/liveQuizQuestions'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
@@ -7,6 +8,7 @@ import { fetchLiveQuizParticipant, joinLiveQuiz, submitLiveQuizVote } from '../.
 import { supabaseConfigured } from '../../services/supabase'
 import {
   playAnswerSound,
+  playCountdownTickSound,
   playQuestionPopSound,
   unlockLiveQuizAudio,
 } from '../../utils/liveQuizSounds'
@@ -47,12 +49,19 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
   const [voteError, setVoteError] = useState('')
   const [voteBusy, setVoteBusy] = useState(false)
   const [revealAnim, setRevealAnim] = useState(false)
+  const lastTickSecRef = useRef(null)
+
+  const roundTheme = useMemo(
+    () => paletteToCssVars(pickPaletteForRound(participant.id, roundId)),
+    [participant.id, roundId],
+  )
 
   useParticipantHeartbeat(participant.id, onSessionEnded)
 
   useEffect(() => {
     setVotedOption(null)
     setVoteError('')
+    lastTickSecRef.current = null
   }, [roundId])
 
   useEffect(() => {
@@ -62,6 +71,14 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
     const t = window.setTimeout(() => setRevealAnim(false), 700)
     return () => window.clearTimeout(t)
   }, [roundId, displayPhase])
+
+  useEffect(() => {
+    if (displayPhase !== 'question') return
+    if (remainingSec > 4 || remainingSec < 1) return
+    if (lastTickSecRef.current === remainingSec) return
+    lastTickSecRef.current = remainingSec
+    playCountdownTickSound(remainingSec)
+  }, [displayPhase, remainingSec])
 
   async function handleVote(optionNumber) {
     if (displayPhase !== 'question' || voteBusy || votedOption) return
@@ -108,8 +125,12 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
       )}
 
       {displayPhase === 'question' && question && (
-        <div key={roundId} className="live-panel live-panel--active live-panel--pop-in">
-          <p className="live-question-label">{question.title}</p>
+        <div
+          key={roundId}
+          className="live-panel live-panel--active live-panel--pop-in live-panel--themed"
+          style={roundTheme}
+        >
+          <p className="live-question-label live-question-label--themed">{question.title}</p>
           <p className="live-muted live-pick-hint">Tap your answer</p>
           <div className="live-parent-options" role="group" aria-label="Answer choices">
             {question.sendLabels.map((label, idx) => {
@@ -119,7 +140,7 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
                 <button
                   key={optionNum}
                   type="button"
-                  className={`btn live-parent-option live-option-stagger live-send-num ${isSelected ? 'primary' : 'ghost'}`}
+                  className={`btn live-parent-option live-option-stagger live-send-num live-parent-option--themed ${isSelected ? 'live-parent-option--picked' : ''}`}
                   style={{ animationDelay: `${idx * 80}ms` }}
                   onClick={() => handleVote(optionNum)}
                   disabled={voteBusy || Boolean(votedOption)}
@@ -142,11 +163,11 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
           )}
           <div className="live-timer" aria-label={`${remainingSec} seconds remaining`}>
             <div
-              className="live-timer-bar"
+              className="live-timer-bar live-timer-bar--themed"
               style={{ width: `${(remainingSec / timerSeconds) * 100}%` }}
             />
           </div>
-          <p className="live-timer-text">{remainingSec}s</p>
+          <p className="live-timer-text live-timer-text--themed">{remainingSec}s</p>
         </div>
       )}
 
