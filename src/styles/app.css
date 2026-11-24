@@ -2182,3 +2182,185 @@ a.btn.primary {
   font-size: 12px;
   color: var(--ink);
 }
+
+/* --- Live quiz (public parent / admin) --- */
+.live-page .live-card--wide {
+  width: min(520px, 100%);
+  text-align: left;
+}
+
+.live-page .live-card--admin {
+  width: min(640px, 100%);
+  text-align: left;
+}
+
+.live-join-form {
+  text-align: left;
+}
+
+.live-label-block {
+  display: block;
+  margin-top: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.live-gender-row {
+  display: flex;
+  gap: 16px;
+  margin: 8px 0 16px;
+}
+
+.live-gender-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.live-muted {
+  color: var(--muted);
+  font-size: 14px;
+  margin: 8px 0;
+}
+
+.live-welcome {
+  margin: 0 0 16px;
+  font-size: 15px;
+  text-align: center;
+}
+
+.live-panel {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px 20px;
+  text-align: center;
+  background: var(--soft);
+}
+
+.live-panel--active {
+  background: #fff;
+  border-color: var(--green2);
+  box-shadow: var(--shadow);
+}
+
+.live-panel--timeout {
+  background: rgba(168, 73, 62, 0.08);
+  border-color: rgba(168, 73, 62, 0.35);
+}
+
+.live-panel-title {
+  margin: 0 0 8px;
+  color: var(--green);
+}
+
+.live-question-label {
+  margin: 0 0 12px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.live-option-reveal {
+  font-size: clamp(22px, 5vw, 32px);
+  font-weight: 700;
+  color: var(--green);
+  margin: 8px 0 20px;
+  line-height: 1.25;
+}
+
+.live-timer {
+  height: 10px;
+  border-radius: 999px;
+  background: var(--line);
+  overflow: hidden;
+  margin: 0 auto;
+  max-width: 280px;
+}
+
+.live-timer-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--green2), var(--gold));
+  transition: width 0.2s linear;
+}
+
+.live-timer-text {
+  margin: 10px 0 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.live-leave-btn {
+  margin-top: 16px;
+  width: 100%;
+}
+
+.live-pin-hint {
+  text-align: left;
+  font-size: 12px;
+}
+
+.live-admin-preview {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  background: var(--soft);
+  border-radius: 12px;
+  font-size: 14px;
+}
+
+.live-admin-preview-label {
+  display: block;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 4px;
+}
+
+.live-wait-btn {
+  width: 100%;
+  margin-bottom: 20px;
+}
+
+.live-admin-questions {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.live-admin-question {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  background: #fff;
+}
+
+.live-admin-question-title {
+  margin: 0 0 10px;
+  font-size: 16px;
+  color: var(--green);
+}
+
+.live-admin-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.live-option-btn {
+  flex: 1 1 120px;
+}
+
+.live-participants {
+  margin: 16px 0;
+  font-size: 14px;
+}
+
+.live-participants-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  max-height: 160px;
+  overflow: auto;
+}

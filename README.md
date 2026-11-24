@@ -37,7 +37,26 @@ http://localhost:5173/#/login
 http://localhost:5173/#/practice
 http://localhost:5173/#/how-to-imitate
 http://localhost:5173/#/common-mistakes
+http://localhost:5173/#/live/parent   (no sign-in — live session for parents)
+http://localhost:5173/#/live/admin    (host PIN — controls what everyone sees)
 ```
+
+### Live quiz (parents + admin)
+
+Public URLs (no Supabase account required for parents):
+
+```text
+https://learn.alquranqiratacademy.com/#/live/parent
+https://learn.alquranqiratacademy.com/#/live/admin
+```
+
+1. In Supabase SQL Editor, run `supabase/live_quiz.sql` (after `schema.sql`).
+2. Set the host PIN: `update public.live_quiz_secrets set admin_pin = 'your-secret' where id = 1;`
+3. In Supabase **Database → Replication**, ensure `live_quiz_state` is enabled for Realtime (the SQL script tries to add it automatically).
+4. Edit question/option labels in `src/data/liveQuizQuestions.js` if needed.
+5. Deploy as usual.
+
+**Flow:** Parents enter child name, parent name, and gender, then join. The admin opens `/live/admin`, enters the PIN, and clicks an option under Question 1–5 — that answer appears on every joined parent screen with a **10 second** countdown, then **Timed out**. **Show “wait for next one”** puts everyone back on the waiting screen.
 
 ---
 

@@ -9,6 +9,8 @@ import CommonMistakesPage from './pages/CommonMistakesPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
 import CompareAudioPage from './pages/CompareAudioPage.jsx'
 import MyAttemptsPage from './pages/MyAttemptsPage.jsx'
+import LiveParentPage from './pages/live/LiveParentPage.jsx'
+import LiveAdminPage from './pages/live/LiveAdminPage.jsx'
 
 function ProtectedRoute({ children }) {
   const { user, loading } = useAuth()
@@ -41,6 +43,8 @@ export default function App() {
           </PublicOnlyRoute>
         }
       />
+      <Route path="/live/parent" element={<LiveParentPage />} />
+      <Route path="/live/admin" element={<LiveAdminPage />} />
       <Route
         path="/"
         element={
