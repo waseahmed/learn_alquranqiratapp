@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { APP_NAME, APP_TAGLINE } from '../../config'
 import { getQuestionFromList } from '../../data/liveQuizQuestions'
 import LiveQuizConfig from '../../components/live/LiveQuizConfig'
+import { LiveUsersDashboard, LiveUsersRoster } from '../../components/live/LiveUsersPanel'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
 import { useLiveQuizQuestions } from '../../hooks/useLiveQuizQuestions'
 import {
@@ -14,9 +15,15 @@ import {
   subscribeLiveQuizVotes,
 } from '../../services/liveQuiz'
 import { supabaseConfigured } from '../../services/supabase'
-import { formatIdleSince } from '../../utils/formatIdle'
 
 const PIN_STORAGE_KEY = 'aqqa_live_admin_pin'
+
+const TABS = [
+  { id: 'host', label: 'Host' },
+  { id: 'users', label: 'Live users' },
+  { id: 'config', label: 'Config' },
+  { id: 'analysis', label: 'Analysis' },
+]
 
 function readStoredPin() {
   try {
@@ -37,6 +44,7 @@ function LiveStatsOverview({ stats, question }) {
   const optionLabels = question?.options?.length
     ? question.options
     : ['Answer 1', 'Answer 2', 'Answer 3'].slice(0, 3)
+
   return (
     <section className="live-stats-panel" aria-labelledby="live-stats-heading">
       <h3 id="live-stats-heading" className="live-stats-heading">
@@ -97,6 +105,7 @@ export default function LiveAdminPage() {
   const [participants, setParticipants] = useState([])
   const [stats, setStats] = useState(null)
   const [now, setNow] = useState(() => Date.now())
+  const [tab, setTab] = useState('host')
 
   const display = useLiveQuizDisplay()
   const { rows: questionRows, questions: sendableQuestions, refresh: refreshQuestions } =
@@ -201,8 +210,8 @@ export default function LiveAdminPage() {
     activeQuestion || getQuestionFromList(questionRows, stats?.question_number) || null
 
   return (
-    <div className="login-page live-page">
-      <div className="login-card live-card live-card--admin">
+    <div className="login-page live-page live-page--admin-wide">
+      <div className="login-card live-card live-card--admin live-card--admin-tabs">
         <img
           src={`${import.meta.env.BASE_URL}aqqa-logo.png`}
           alt="Al Quran Qirat Academy"
@@ -241,65 +250,18 @@ export default function LiveAdminPage() {
           </form>
         ) : (
           <>
-            <LiveQuizConfig
-              pin={pin}
-              rows={questionRows}
-              disabled={busy || !supabaseConfigured}
-              onSaved={() => {
-                refreshQuestions()
-                refreshStats()
-              }}
-              onCleared={() => refreshStats()}
-            />
-
-            <LiveStatsOverview stats={stats} question={statsQuestion} />
-
-            <div className="live-admin-preview" aria-live="polite">
-              <span className="live-admin-preview-label">Audience sees:</span>
-              {preview.displayPhase === 'waiting' && <strong>Waiting for next question</strong>}
-              {preview.displayPhase === 'question' && activeQuestion && (
-                <strong>
-                  {activeQuestion.title} — all options ({preview.remainingSec}s)
-                </strong>
-              )}
-              {preview.displayPhase === 'timed_out' && <strong>Timed out</strong>}
-            </div>
-
-            <button
-              type="button"
-              className="btn primary live-wait-btn"
-              onClick={showWait}
-              disabled={busy || !supabaseConfigured}
-            >
-              Show “wait for next one” to everyone
-            </button>
-
-            <div className="live-admin-questions">
-              {sendableQuestions.map((q) => (
-                <div key={q.number} className="live-admin-question-row">
-                  <h3 className="live-admin-question-title">{q.title}</h3>
-                  <div className="live-admin-options-inline">
-                    <span className="live-send-label">Send:</span>
-                    {q.sendLabels.map((label, idx) => {
-                      const optionNum = idx + 1
-                      const isLive =
-                        display.questionNumber === q.number &&
-                        display.displayPhase !== 'waiting'
-                      return (
-                        <button
-                          key={optionNum}
-                          type="button"
-                          className={`btn ${isLive ? 'primary' : 'ghost'} live-option-btn-inline live-send-num`}
-                          onClick={() => showOption(q.number, optionNum)}
-                          disabled={busy || !supabaseConfigured}
-                          title={`Send ${q.title} (${q.options[idx]})`}
-                        >
-                          {label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                </div>
+            <div className="live-admin-tabs" role="tablist" aria-label="Admin sections">
+              {TABS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === t.id}
+                  className={`live-admin-tab ${tab === t.id ? 'live-admin-tab--active' : ''}`}
+                  onClick={() => setTab(t.id)}
+                >
+                  {t.label}
+                </button>
               ))}
             </div>
 
@@ -309,58 +271,102 @@ export default function LiveAdminPage() {
               </p>
             )}
 
-            <section className="live-roster" aria-labelledby="live-roster-heading">
-              <h3 id="live-roster-heading" className="live-stats-heading">
-                Families online ({participants.length})
-              </h3>
-              <p className="live-muted live-roster-hint">
-                Idle status uses last activity on the parent screen. Remove entries that
-                look abandoned.
-              </p>
-              <ul className="live-roster-list">
-                {participants.map((p) => {
-                  const idle = formatIdleSince(p.last_seen_at, now)
-                  return (
-                    <li
-                      key={p.id}
-                      className={`live-roster-row ${idle.warn ? 'live-roster-row--warn' : ''}`}
-                    >
-                      <div className="live-roster-info">
-                        <strong>{p.kid_name}</strong>
-                        <span className="live-muted">
-                          {p.parent_role === 'father' ? 'Father' : 'Mother'} · joined{' '}
-                          {new Date(p.created_at).toLocaleTimeString([], {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                        <span
-                          className={`live-roster-status ${idle.idle ? 'live-roster-status--idle' : 'live-roster-status--active'}`}
-                        >
-                          {idle.label}
-                        </span>
+            {tab === 'host' && (
+              <div className="live-admin-tab-panel" role="tabpanel">
+                <LiveStatsOverview stats={stats} question={statsQuestion} />
+
+                <div className="live-admin-preview" aria-live="polite">
+                  <span className="live-admin-preview-label">Audience sees:</span>
+                  {preview.displayPhase === 'waiting' && (
+                    <strong>Waiting for next question</strong>
+                  )}
+                  {preview.displayPhase === 'question' && activeQuestion && (
+                    <strong>
+                      {activeQuestion.title} — all options ({preview.remainingSec}s)
+                    </strong>
+                  )}
+                  {preview.displayPhase === 'timed_out' && <strong>Timed out</strong>}
+                </div>
+
+                <button
+                  type="button"
+                  className="btn primary live-wait-btn"
+                  onClick={showWait}
+                  disabled={busy || !supabaseConfigured}
+                >
+                  Show “wait for next one” to everyone
+                </button>
+
+                <div className="live-admin-questions">
+                  {sendableQuestions.map((q) => (
+                    <div key={q.number} className="live-admin-question-row">
+                      <h3 className="live-admin-question-title">{q.title}</h3>
+                      <div className="live-admin-options-inline">
+                        <span className="live-send-label">Send:</span>
+                        {q.sendLabels.map((label, idx) => {
+                          const optionNum = idx + 1
+                          const isLive =
+                            display.questionNumber === q.number &&
+                            display.displayPhase !== 'waiting'
+                          return (
+                            <button
+                              key={optionNum}
+                              type="button"
+                              className={`btn ${isLive ? 'primary' : 'ghost'} live-option-btn-inline live-send-num`}
+                              onClick={() => showOption(q.number, optionNum)}
+                              disabled={busy || !supabaseConfigured}
+                              title={`Send ${q.title} (${q.options[idx]})`}
+                            >
+                              {label}
+                            </button>
+                          )
+                        })}
                       </div>
-                      <button
-                        type="button"
-                        className="btn ghost live-roster-remove"
-                        onClick={() => removeParticipant(p.id)}
-                        disabled={busy}
-                      >
-                        Remove
-                      </button>
-                    </li>
-                  )
-                })}
-              </ul>
-            </section>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-            <div className="live-admin-nav">
-              <Link to="/live/admin/analysis" className="btn primary">
-                Full analysis by question
-              </Link>
-            </div>
+            {tab === 'users' && (
+              <div className="live-admin-tab-panel" role="tabpanel">
+                <LiveUsersDashboard participants={participants} />
+                <LiveUsersRoster
+                  participants={participants}
+                  now={now}
+                  onRemove={removeParticipant}
+                  busy={busy}
+                />
+              </div>
+            )}
 
-            <button type="button" className="btn ghost" onClick={handleLock}>
+            {tab === 'config' && (
+              <div className="live-admin-tab-panel" role="tabpanel">
+                <LiveQuizConfig
+                  pin={pin}
+                  rows={questionRows}
+                  disabled={busy || !supabaseConfigured}
+                  onSaved={() => {
+                    refreshQuestions()
+                    refreshStats()
+                  }}
+                  onCleared={() => refreshStats()}
+                />
+              </div>
+            )}
+
+            {tab === 'analysis' && (
+              <div className="live-admin-tab-panel" role="tabpanel">
+                <p className="live-muted">
+                  Per-question breakdown with full question text and each family&apos;s answer.
+                </p>
+                <Link to="/live/admin/analysis" className="btn primary live-analysis-open">
+                  Open full analysis
+                </Link>
+              </div>
+            )}
+
+            <button type="button" className="btn ghost live-lock-btn" onClick={handleLock}>
               Lock host screen
             </button>
           </>

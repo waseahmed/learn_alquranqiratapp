@@ -11,6 +11,16 @@ export async function fetchLiveQuizState() {
   return { data, error }
 }
 
+export async function fetchLiveQuizParticipant(participantId) {
+  if (!supabase || !participantId) {
+    return { data: null, error: new Error('Missing participant') }
+  }
+  const { data, error } = await supabase.rpc('live_quiz_get_participant', {
+    p_participant_id: participantId,
+  })
+  return { data, error }
+}
+
 export async function joinLiveQuiz({ kidName, parentRole }) {
   if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
   const { data, error } = await supabase

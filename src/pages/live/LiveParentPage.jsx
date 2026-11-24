@@ -3,26 +3,31 @@ import ConfettiBurst from '../../components/live/ConfettiBurst'
 import { getFullOptionLabel } from '../../data/liveQuizQuestions'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
 import { useParticipantHeartbeat } from '../../hooks/useParticipantHeartbeat'
-import { joinLiveQuiz, submitLiveQuizVote } from '../../services/liveQuiz'
+import { fetchLiveQuizParticipant, joinLiveQuiz, submitLiveQuizVote } from '../../services/liveQuiz'
 import { supabaseConfigured } from '../../services/supabase'
 
 const STORAGE_KEY = 'aqqa_live_participant'
 
-function readStoredParticipant() {
+function readStoredParticipantId() {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY)
+    const raw = localStorage.getItem(STORAGE_KEY)
     if (!raw) return null
-    return JSON.parse(raw)
+    const parsed = JSON.parse(raw)
+    return parsed?.id ?? null
   } catch {
     return null
   }
+}
+
+function persistParticipant(participant) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(participant))
 }
 
 function roleLabel(role) {
   return role === 'father' ? 'Father' : 'Mother'
 }
 
-function LiveScreen({ participant, onAnswerConfetti }) {
+function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
   const {
     displayPhase,
     question,
@@ -38,7 +43,7 @@ function LiveScreen({ participant, onAnswerConfetti }) {
   const [voteBusy, setVoteBusy] = useState(false)
   const [revealAnim, setRevealAnim] = useState(false)
 
-  useParticipantHeartbeat(participant.id)
+  useParticipantHeartbeat(participant.id, onSessionEnded)
 
   useEffect(() => {
     setVotedOption(null)
@@ -155,17 +160,46 @@ function LiveScreen({ participant, onAnswerConfetti }) {
 }
 
 export default function LiveParentPage() {
-  const [participant, setParticipant] = useState(() => readStoredParticipant())
+  const [participant, setParticipant] = useState(null)
   const [kidName, setKidName] = useState('')
   const [parentRole, setParentRole] = useState('mother')
   const [error, setError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [confetti, setConfetti] = useState(false)
+  const [restoring, setRestoring] = useState(true)
 
   useEffect(() => {
-    if (participant) {
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(participant))
+    let active = true
+    async function restore() {
+      const id = readStoredParticipantId()
+      if (!id) {
+        if (active) setRestoring(false)
+        return
+      }
+      const { data, error: restoreError } = await fetchLiveQuizParticipant(id)
+      if (!active) return
+      if (restoreError || !data) {
+        localStorage.removeItem(STORAGE_KEY)
+        setRestoring(false)
+        return
+      }
+      const restored = {
+        id: data.id,
+        kidName: data.kid_name,
+        parentRole: data.parent_role,
+      }
+      setParticipant(restored)
+      persistParticipant(restored)
+      setRestoring(false)
     }
+    restore()
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (participant) persistParticipant(participant)
   }, [participant])
 
   async function handleJoin(e) {
@@ -190,7 +224,7 @@ export default function LiveParentPage() {
   }
 
   function handleLeave() {
-    sessionStorage.removeItem(STORAGE_KEY)
+    localStorage.removeItem(STORAGE_KEY)
     setParticipant(null)
     setKidName('')
   }
@@ -216,7 +250,9 @@ export default function LiveParentPage() {
           </p>
         )}
 
-        {!participant ? (
+        {restoring && <p className="live-muted">Restoring your session…</p>}
+
+        {!restoring && !participant ? (
           <form className="login-form live-join-form" onSubmit={handleJoin}>
             <label htmlFor="kid-name">Child&apos;s name</label>
             <input
@@ -270,17 +306,18 @@ export default function LiveParentPage() {
               {submitting ? 'Joining…' : 'Join live session'}
             </button>
           </form>
-        ) : (
+        ) : !restoring && participant ? (
           <>
             <LiveScreen
               participant={participant}
               onAnswerConfetti={triggerAnswerConfetti}
+              onSessionEnded={handleLeave}
             />
             <button type="button" className="btn ghost live-leave-btn" onClick={handleLeave}>
               Leave session
             </button>
           </>
-        )}
+        ) : null}
       </div>
     </div>
   )
