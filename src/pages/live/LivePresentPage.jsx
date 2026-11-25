@@ -1,11 +1,18 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { fetchLivePresentSnapshot } from '../../services/liveQuiz'
+import { formatResponseMs } from '../../utils/liveQuizTiming'
 
 const MEDALS = ['🥇', '🥈', '🥉']
+const ORDINAL = ['1st', '2nd', '3rd']
+
+function roleSuffix(role) {
+  return role === 'father' ? ' · Father' : ' · Mother'
+}
 
 export default function LivePresentPage() {
   const [snapshot, setSnapshot] = useState(null)
   const [error, setError] = useState('')
+  const [revealKey, setRevealKey] = useState(0)
 
   useEffect(() => {
     let active = true
@@ -23,9 +30,22 @@ export default function LivePresentPage() {
     }
   }, [])
 
-  const podium = snapshot?.last_podium?.places || []
+  const podium = snapshot?.last_podium
+  const title = podium?.question_title || snapshot?.remaining_context?.title
+  const roundId = podium?.round_id
+  const ranking = podium?.ranking?.length ? podium.ranking : podium?.places || []
+  const topThree = (podium?.places || []).slice(0, 3)
   const leaderboard = snapshot?.leaderboard || []
-  const title = snapshot?.last_podium?.question_title || snapshot?.remaining_context?.title
+  const isCompetition = podium?.group_mode === 'competition'
+
+  useEffect(() => {
+    if (roundId) setRevealKey((k) => k + 1)
+  }, [roundId])
+
+  const listHeading = useMemo(() => {
+    if (!title) return 'Answer order'
+    return isCompetition ? `Correct answers — fastest first` : `Answers — in order received`
+  }, [title, isCompetition])
 
   return (
     <div className="live-present">
@@ -38,7 +58,7 @@ export default function LivePresentPage() {
             e.currentTarget.style.display = 'none'
           }}
         />
-        <h1 className="live-present-title">Live leaderboard</h1>
+        <h1 className="live-present-title">Live results</h1>
         <p className="live-present-sub">Drag this window to your projector or second screen</p>
       </header>
 
@@ -48,47 +68,97 @@ export default function LivePresentPage() {
         </p>
       )}
 
-      <div className="live-present-grid">
-        <section className="live-present-podium" aria-labelledby="podium-heading">
-          <h2 id="podium-heading" className="live-present-section-title">
-            {title ? `Fastest correct — ${title}` : 'Round winners'}
+      <div className="live-present-stage">
+        {title ? (
+          <h2 className="live-present-question" key={`q-${roundId || title}`}>
+            {title}
           </h2>
-          {podium.length === 0 ? (
-            <p className="live-present-empty">Waiting for a competition round to finish…</p>
+        ) : (
+          <p className="live-present-empty live-present-empty--hero">
+            Waiting for the host to send a question…
+          </p>
+        )}
+
+        <section className="live-present-round" aria-labelledby="round-order-heading">
+          <h3 id="round-order-heading" className="live-present-section-title">
+            {listHeading}
+          </h3>
+          {ranking.length === 0 ? (
+            <p className="live-present-empty">No answers yet for this round.</p>
           ) : (
-            <ol className="live-present-podium-list">
-              {podium.map((entry, idx) => (
+            <ol className="live-present-ranking-list">
+              {ranking.map((entry, idx) => (
                 <li
-                  key={entry.participant_id || idx}
-                  className={`live-present-podium-item live-present-podium-item--${entry.place || idx + 1}`}
+                  key={entry.participant_id || `${entry.kid_name}-${idx}`}
+                  className={`live-present-ranking-row ${entry.rank <= 3 ? `live-present-ranking-row--${entry.rank || idx + 1}` : ''}`}
                 >
-                  <span className="live-present-medal" aria-hidden>
-                    {MEDALS[(entry.place || idx + 1) - 1] || entry.place}
+                  <span className="live-present-rank">{entry.rank ?? idx + 1}</span>
+                  <span className="live-present-name">
+                    {entry.kid_name}
+                    <span className="live-present-role">{roleSuffix(entry.parent_role)}</span>
                   </span>
-                  <motionName entry={entry} />
-                  <span className="live-present-pts">+{entry.points_awarded} pts</span>
+                  <span className="live-present-ms">{formatResponseMs(entry.response_ms)}</span>
+                  {entry.points_awarded > 0 && (
+                    <span className="live-present-pts">+{entry.points_awarded}</span>
+                  )}
                 </li>
               ))}
             </ol>
           )}
         </section>
 
-        <section className="live-present-board" aria-labelledby="board-heading">
-          <h2 id="board-heading" className="live-present-section-title">
-            Overall score
-          </h2>
+        {topThree.length > 0 && (
+          <section
+            key={revealKey}
+            className="live-present-spotlight"
+            aria-labelledby="spotlight-heading"
+          >
+            <h3 id="spotlight-heading" className="live-present-section-title">
+              Top 3
+            </h3>
+            <ol className="live-present-spotlight-list">
+              {topThree.map((entry) => (
+                <li
+                  key={entry.participant_id || entry.place}
+                  className={`live-present-spotlight-card live-present-spotlight-card--${entry.place} live-present-spotlight-card--animate`}
+                  style={{ animationDelay: `${(entry.place - 1) * 180}ms` }}
+                >
+                  <span className="live-present-medal" aria-hidden>
+                    {MEDALS[entry.place - 1] || entry.place}
+                  </span>
+                  <div className="live-present-spotlight-body">
+                    <span className="live-present-spotlight-label">{ORDINAL[entry.place - 1] || `${entry.place}th`}</span>
+                    <strong className="live-present-spotlight-name">{entry.kid_name}</strong>
+                    <span className="live-present-role">{roleSuffix(entry.parent_role)}</span>
+                    <span className="live-present-ms live-present-ms--spot">
+                      {formatResponseMs(entry.response_ms)}
+                    </span>
+                  </div>
+                  {entry.points_awarded > 0 && (
+                    <span className="live-present-pts live-present-pts--spot">
+                      +{entry.points_awarded} pts
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+
+        <section className="live-present-board live-present-board--compact" aria-labelledby="board-heading">
+          <h3 id="board-heading" className="live-present-section-title">
+            Overall competition score
+          </h3>
           {leaderboard.length === 0 ? (
             <p className="live-present-empty">Scores appear after competition questions.</p>
           ) : (
             <ol className="live-present-board-list">
-              {leaderboard.slice(0, 12).map((row, idx) => (
+              {leaderboard.slice(0, 8).map((row, idx) => (
                 <li key={`${row.kid_name}-${idx}`} className="live-present-board-row">
                   <span className="live-present-rank">{idx + 1}</span>
                   <span className="live-present-name">
                     {row.kid_name}
-                    <span className="live-present-role">
-                      {row.parent_role === 'father' ? ' · Father' : ' · Mother'}
-                    </span>
+                    <span className="live-present-role">{roleSuffix(row.parent_role)}</span>
                   </span>
                   <span className="live-present-score">{row.points}</span>
                 </li>
@@ -98,13 +168,5 @@ export default function LivePresentPage() {
         </section>
       </div>
     </div>
-  )
-}
-
-function motionName({ entry }) {
-  return (
-    <span className="live-present-name-block">
-      <strong>{entry.kid_name}</strong>
-    </span>
   )
 }

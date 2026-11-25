@@ -4,7 +4,13 @@ import ConfettiBurst from '../../components/live/ConfettiBurst'
 import { getFullOptionLabel } from '../../data/liveQuizQuestions'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
 import { useParticipantHeartbeat } from '../../hooks/useParticipantHeartbeat'
-import { fetchLiveQuizParticipant, joinLiveQuiz, submitLiveQuizVote } from '../../services/liveQuiz'
+import {
+  fetchLiveQuizParticipant,
+  fetchLiveQuizPublicRoundResults,
+  joinLiveQuiz,
+  submitLiveQuizVote,
+} from '../../services/liveQuiz'
+import { formatResponseMs } from '../../utils/liveQuizTiming'
 import { supabaseConfigured } from '../../services/supabase'
 import {
   playAnswerSound,
@@ -49,6 +55,7 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
   const [voteError, setVoteError] = useState('')
   const [voteBusy, setVoteBusy] = useState(false)
   const [revealAnim, setRevealAnim] = useState(false)
+  const [roundResults, setRoundResults] = useState(null)
   const lastTickSecRef = useRef(null)
 
   const roundTheme = useMemo(
@@ -61,8 +68,27 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
   useEffect(() => {
     setVotedOption(null)
     setVoteError('')
+    setRoundResults(null)
     lastTickSecRef.current = null
   }, [roundId])
+
+  useEffect(() => {
+    if (displayPhase !== 'timed_out' || !roundId) return undefined
+    let active = true
+    async function loadResults() {
+      const { data, error } = await fetchLiveQuizPublicRoundResults()
+      if (!active || error || !data?.show_results) return
+      const podium = data.last_podium
+      if (podium?.round_id && podium.round_id !== roundId) return
+      setRoundResults(podium)
+    }
+    loadResults()
+    const id = window.setInterval(loadResults, 1200)
+    return () => {
+      active = false
+      window.clearInterval(id)
+    }
+  }, [displayPhase, roundId])
 
   useEffect(() => {
     if (!roundId || displayPhase !== 'question') return undefined
@@ -110,6 +136,15 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
 
   const votedLabel =
     votedOption && question ? getFullOptionLabel(question, votedOption) : null
+
+  const myRankEntry = useMemo(() => {
+    if (!roundResults?.ranking?.length) return null
+    return roundResults.ranking.find((row) => row.participant_id === participant.id) ?? null
+  }, [roundResults, participant.id])
+
+  const resultsList = roundResults?.ranking?.length
+    ? roundResults.ranking
+    : roundResults?.places || []
 
   return (
     <div className={`live-screen ${revealAnim ? 'live-screen--reveal' : ''}`}>
@@ -172,14 +207,48 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
       )}
 
       {displayPhase === 'timed_out' && (
-        <div className="live-panel live-panel--timeout">
-          <h2 className="live-panel-title">Timed out</h2>
+        <div className="live-panel live-panel--timeout live-panel--results">
+          <h2 className="live-panel-title">Time&apos;s up</h2>
+          {roundResults?.question_title && (
+            <p className="live-results-q">{roundResults.question_title}</p>
+          )}
           {votedLabel ? (
             <p className="live-muted">
               You answered: <strong>{votedLabel}</strong>
             </p>
           ) : (
             <p className="live-muted">No answer was sent in time.</p>
+          )}
+          {myRankEntry && (
+            <p className="live-results-you" role="status">
+              Your place: <strong>#{myRankEntry.rank}</strong>
+              {myRankEntry.is_correct !== false && (
+                <> · {formatResponseMs(myRankEntry.response_ms)}</>
+              )}
+              {myRankEntry.points_awarded > 0 && (
+                <> · +{myRankEntry.points_awarded} pts</>
+              )}
+            </p>
+          )}
+          {resultsList.length > 0 ? (
+            <ol className="live-results-list" aria-label="Who answered fastest">
+              {resultsList.map((row, idx) => (
+                <li
+                  key={row.participant_id || idx}
+                  className={
+                    row.participant_id === participant.id
+                      ? 'live-results-row live-results-row--you'
+                      : 'live-results-row'
+                  }
+                >
+                  <span className="live-results-rank">{row.rank ?? idx + 1}</span>
+                  <span className="live-results-name">{row.kid_name}</span>
+                  <span className="live-results-ms">{formatResponseMs(row.response_ms)}</span>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="live-muted">Loading results…</p>
           )}
           <p className="live-muted">Wait for the host to continue.</p>
         </div>

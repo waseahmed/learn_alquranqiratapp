@@ -14,14 +14,16 @@ export default function LiveAdminAnalysisPanel({ pin }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(Boolean(pin))
-  const { rows: questionRows } = useLiveQuizQuestions()
+  const [groupId, setGroupId] = useState('')
+  const { rows: questionRows, groups } = useLiveQuizQuestions()
 
   const refresh = useCallback(async () => {
     if (!pin) {
       setLoading(false)
       return
     }
-    const { data: payload, error: err } = await adminLiveQuizDetailedAnalysis(pin)
+    const parsedGroupId = groupId === '' ? null : Number(groupId)
+    const { data: payload, error: err } = await adminLiveQuizDetailedAnalysis(pin, parsedGroupId)
     setLoading(false)
     if (err) {
       setError(err.message || 'Could not load analysis.')
@@ -29,7 +31,7 @@ export default function LiveAdminAnalysisPanel({ pin }) {
     }
     setData(payload)
     setError('')
-  }, [pin])
+  }, [pin, groupId])
 
   useEffect(() => {
     setLoading(Boolean(pin))
@@ -49,8 +51,34 @@ export default function LiveAdminAnalysisPanel({ pin }) {
     )
   }
 
+  const groupLabel =
+    groupId === ''
+      ? 'All groups'
+      : groups.find((g) => String(g.id) === groupId)?.name || `Group ${groupId}`
+
   return (
     <div className="live-analysis-panel">
+      <div className="live-analysis-toolbar">
+        <label className="live-analysis-group-label" htmlFor="live-analysis-group">
+          Group
+        </label>
+        <select
+          id="live-analysis-group"
+          className="live-analysis-group-select"
+          value={groupId}
+          onChange={(e) => setGroupId(e.target.value)}
+        >
+          <option value="">All groups</option>
+          {groups.map((g) => (
+            <option key={g.id} value={String(g.id)}>
+              {g.name}
+              {g.mode === 'competition' ? ' (competition)' : ' (poll)'}
+            </option>
+          ))}
+        </select>
+        <span className="live-muted live-analysis-group-hint">Showing: {groupLabel}</span>
+      </div>
+
       {loading && <p className="live-muted">Loading analysis…</p>}
       {error && (
         <p className="login-error" role="alert">

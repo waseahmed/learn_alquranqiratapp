@@ -97,11 +97,18 @@ export async function adminRemoveAllParticipants(pin) {
   return { data, error }
 }
 
-export async function adminLiveQuizDetailedAnalysis(pin) {
+export async function adminLiveQuizDetailedAnalysis(pin, groupId = null) {
   if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
   const { data, error } = await supabase.rpc('live_quiz_admin_detailed_analysis', {
     p_pin: pin,
+    p_group_id: groupId,
   })
+  return { data, error }
+}
+
+export async function fetchLiveQuizPublicRoundResults() {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { data, error } = await supabase.rpc('live_quiz_public_round_results')
   return { data, error }
 }
 
