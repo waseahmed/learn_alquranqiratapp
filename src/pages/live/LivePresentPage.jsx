@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
+import LiveQuizLogo from '../../components/live/LiveQuizLogo'
 import { fetchLivePresentSnapshot } from '../../services/liveQuiz'
 import { formatResponseMs } from '../../utils/liveQuizTiming'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 const ORDINAL = ['1st', '2nd', '3rd']
-const LOGO_CANDIDATES = ['aqqa-logo.png', 'logo.png']
 
 function roleSuffix(role) {
   return role === 'father' ? ' · Father' : ' · Mother'
@@ -33,25 +33,6 @@ function buildPodiumSlots(places, liveAnswers, isCompetition, useLive) {
     if (place >= 1 && place <= 3) slots[place] = entry
   }
   return slots
-}
-
-function PresentLogo() {
-  const [src, setSrc] = useState(`${import.meta.env.BASE_URL}${LOGO_CANDIDATES[0]}`)
-
-  return (
-    <img
-      src={src}
-      alt="Al Quran Qirat Academy"
-      className="live-present-brand-logo"
-      onError={() => {
-        setSrc((prev) => {
-          const idx = LOGO_CANDIDATES.findIndex((name) => prev.endsWith(name))
-          const next = LOGO_CANDIDATES[idx + 1]
-          return next ? `${import.meta.env.BASE_URL}${next}` : ''
-        })
-      }}
-    />
-  )
 }
 
 function PodiumNode({ place, entry, animate }) {
@@ -161,7 +142,7 @@ export default function LivePresentPage() {
     <div className="live-present live-present--theatre">
       <header className="live-present-topbar">
         <div className="live-present-brand">
-          <PresentLogo />
+          <LiveQuizLogo variant="dark" className="live-present-brand-logo" />
           <div>
             <p className="live-present-brand-title">Live results</p>
             <p className="live-present-brand-sub">Al Quran Qirat Academy</p>

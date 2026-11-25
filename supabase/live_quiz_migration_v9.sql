@@ -70,12 +70,16 @@ declare
   s public.live_quiz_state;
   qnums int[];
   gname text;
+  gmode text;
 begin
   if not public.live_quiz_check_pin(p_pin) then
     raise exception 'Invalid admin PIN';
   end if;
 
-  select name into gname from public.live_quiz_groups where id = p_group_id;
+  select name, mode into gname, gmode
+  from public.live_quiz_groups
+  where id = p_group_id;
+
   if gname is null then
     raise exception 'Unknown group';
   end if;
@@ -92,6 +96,15 @@ begin
   if cardinality(qnums) > 0 then
     delete from public.live_quiz_votes v
     where v.question_number = any(qnums);
+  end if;
+
+  if gmode = 'competition' then
+    update public.live_quiz_participants
+    set competition_points = 0;
+
+    update public.live_quiz_state
+    set last_podium = null
+    where id = 1;
   end if;
 
   select * into s from public.live_quiz_state where id = 1;
