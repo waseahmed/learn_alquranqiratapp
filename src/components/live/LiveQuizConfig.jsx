@@ -20,6 +20,8 @@ export default function LiveQuizConfig({
   disabled,
   activeGroupId,
   onActiveGroupChange,
+  view = 'groups',
+  activeGroupName = '—',
 }) {
   const [groupDraft, setGroupDraft] = useState([])
   const [questionDraft, setQuestionDraft] = useState([])
@@ -190,18 +192,40 @@ export default function LiveQuizConfig({
     }
   }
 
-  return (
-    <section className="live-config" aria-labelledby="live-config-heading">
-      <h3 id="live-config-heading" className="live-stats-heading">
-        Session config
-      </h3>
-      <p className="live-muted live-config-hint">
-        Create <strong>question groups</strong> as poll (opinions) or <strong>competition</strong>{' '}
-        (mark the correct answer). Add questions under each group; host runs the active group from
-        the Host tab.
-      </p>
+  const showSaveFooter = view === 'groups' || view === 'questions'
 
-      <fieldset className="live-config-groups">
+  return (
+    <section className="live-config live-config--panel" aria-labelledby="live-config-heading">
+      {view === 'groups' && (
+        <>
+          <header className="live-panel-head">
+            <h3 id="live-config-heading" className="live-panel-head-title">
+              Question groups
+            </h3>
+            <p className="live-panel-head-desc">
+              Each group is either a <strong>poll</strong> (opinions) or a{' '}
+              <strong>competition</strong> (one correct answer, speed scoring).
+            </p>
+          </header>
+
+          <label className="live-config-filter-label" htmlFor="live-config-active-group">
+            Default group when hosting
+          </label>
+          <select
+            id="live-config-active-group"
+            className="live-config-group-select"
+            value={filterGroupId ?? ''}
+            onChange={(e) => handleGroupFilterChange(e.target.value)}
+            disabled={disabled || saveBusy}
+          >
+            {groupDraft.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name} ({g.mode === 'competition' ? 'Competition' : 'Poll'})
+              </option>
+            ))}
+          </select>
+
+          <fieldset className="live-config-groups">
         <legend className="live-config-legend">Question groups</legend>
         {groupDraft.map((g) => (
           <div key={g.id} className="live-config-group-row">
@@ -223,102 +247,134 @@ export default function LiveQuizConfig({
             </select>
           </div>
         ))}
-        <button
-          type="button"
-          className="btn ghost live-config-add-group"
-          onClick={addGroup}
-          disabled={disabled || saveBusy}
-        >
-          + Add group
-        </button>
-      </fieldset>
-
-      <label className="live-config-filter-label" htmlFor="live-config-active-group">
-        Active group for hosting
-      </label>
-      <select
-        id="live-config-active-group"
-        className="live-config-group-select"
-        value={filterGroupId ?? ''}
-        onChange={(e) => handleGroupFilterChange(e.target.value)}
-        disabled={disabled || saveBusy}
-      >
-        {groupDraft.map((g) => (
-          <option key={g.id} value={g.id}>
-            {g.name} ({g.mode === 'competition' ? 'Competition' : 'Poll'})
-          </option>
-        ))}
-      </select>
-
-      <button
-        type="button"
-        className="btn ghost live-config-clear"
-        onClick={() => setClearConfirmOpen(true)}
-        disabled={disabled || clearBusy}
-        aria-expanded={clearConfirmOpen}
-        aria-controls="live-config-clear-confirm"
-      >
-        {clearBusy ? 'Clearing…' : 'Clear all parent answers & start fresh'}
-      </button>
-
-      {clearConfirmOpen && (
-        <div
-          id="live-config-clear-confirm"
-          className="live-config-clear-confirm"
-          role="alertdialog"
-          aria-labelledby="live-config-clear-title"
-          aria-describedby="live-config-clear-desc"
-        >
-          <p id="live-config-clear-title" className="live-config-clear-title">
-            Clear everything and start fresh?
-          </p>
-          <p id="live-config-clear-desc" className="live-muted live-config-clear-desc">
-            This deletes all parent answers, resets competition scores, removes every ✓ above Send,
-            and turns off Live on all questions. Families stay joined.
-          </p>
-          <div className="live-config-clear-actions">
             <button
               type="button"
-              className="btn ghost"
-              onClick={() => setClearConfirmOpen(false)}
-              disabled={clearBusy}
+              className="btn ghost live-config-add-group"
+              onClick={addGroup}
+              disabled={disabled || saveBusy}
             >
-              Cancel
+              + Add group
             </button>
-            <button
-              type="button"
-              className="btn primary"
-              onClick={confirmClearAnswers}
-              disabled={disabled || clearBusy}
-            >
-              {clearBusy ? 'Clearing…' : 'Yes, clear everything'}
-            </button>
-          </div>
-        </div>
+          </fieldset>
+        </>
       )}
 
-      <form className="live-config-form" onSubmit={handleSave}>
-        <div className="live-config-questions-toolbar">
-          <h4 className="live-config-questions-title">
-            Questions
-            {filterGroupId != null && (
-              <span className="live-muted">
-                {' '}
-                — {groupDraft.find((g) => g.id === filterGroupId)?.name}
-              </span>
-            )}
-          </h4>
-          <button
-            type="button"
-            className="btn ghost"
-            onClick={addQuestion}
-            disabled={disabled || saveBusy || groupDraft.length === 0}
-          >
-            + Add question
-          </button>
-        </div>
+      {view === 'questions' && (
+        <>
+          <header className="live-panel-head">
+            <h3 className="live-panel-head-title">Questions</h3>
+            <p className="live-panel-head-desc">
+              Editing questions in{' '}
+              <strong>{groupDraft.find((g) => g.id === filterGroupId)?.name || 'selected group'}</strong>
+              . Parents see numbers only during the live round.
+            </p>
+          </header>
 
-        {filteredQuestions.map((q) => {
+          <label className="live-config-filter-label" htmlFor="live-config-q-group">
+            Question group
+          </label>
+          <select
+            id="live-config-q-group"
+            className="live-config-group-select"
+            value={filterGroupId ?? ''}
+            onChange={(e) => handleGroupFilterChange(e.target.value)}
+            disabled={disabled || saveBusy}
+          >
+            {groupDraft.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name}
+              </option>
+            ))}
+          </select>
+
+          <QuestionsToolbar
+            addQuestion={addQuestion}
+            disabled={disabled}
+            saveBusy={saveBusy}
+            groupDraft={groupDraft}
+          />
+        </>
+      )}
+
+      {view === 'reset' && (
+        <>
+          <header className="live-panel-head">
+            <h3 className="live-panel-head-title">Reset live session data</h3>
+            <p className="live-panel-head-desc">
+              This is a <strong>whole-session</strong> reset — not limited to one question group.
+            </p>
+          </header>
+
+          <div className="live-reset-scope-card">
+            <h4 className="live-reset-scope-title">What gets cleared</h4>
+            <ul className="live-reset-scope-list">
+              <li>All parent answers (every group)</li>
+              <li>Competition points and leaderboard</li>
+              <li>Host ✓ sent markers and Live buttons</li>
+              <li>Current round / wait state on parent phones</li>
+            </ul>
+            <h4 className="live-reset-scope-title">What stays</h4>
+            <ul className="live-reset-scope-list">
+              <li>Joined families (participant list)</li>
+              <li>Saved groups &amp; questions in setup</li>
+            </ul>
+            <p className="live-reset-scope-note">
+              Your current hosting group is{' '}
+              <strong>{activeGroupName}</strong> — it is <em>not</em> cleared separately; the reset
+              applies to the entire session above.
+            </p>
+          </div>
+
+          {!clearConfirmOpen ? (
+            <button
+              type="button"
+              className="btn ghost live-config-clear live-config-clear--danger"
+              onClick={() => setClearConfirmOpen(true)}
+              disabled={disabled || clearBusy}
+            >
+              Reset session answers &amp; scores…
+            </button>
+          ) : (
+            <div
+              id="live-config-clear-confirm"
+              className="live-config-clear-confirm"
+              role="alertdialog"
+              aria-labelledby="live-config-clear-title"
+            >
+              <p id="live-config-clear-title" className="live-config-clear-title">
+                Reset entire live session?
+              </p>
+              <p className="live-muted live-config-clear-desc">
+                Clears data for <strong>all {groupDraft.length} group(s)</strong>, including{' '}
+                {activeGroupName}. This cannot be undone.
+              </p>
+              <div className="live-config-clear-actions">
+                <button
+                  type="button"
+                  className="btn ghost"
+                  onClick={() => setClearConfirmOpen(false)}
+                  disabled={clearBusy}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn primary live-btn-danger"
+                  onClick={confirmClearAnswers}
+                  disabled={disabled || clearBusy}
+                >
+                  {clearBusy ? 'Resetting…' : 'Yes, reset whole session'}
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {(view === 'questions' || showSaveFooter) && (
+        <form className="live-config-form" onSubmit={handleSave}>
+          {view === 'questions' &&
+            filteredQuestions.map((q) => {
           const mode = groupModeById.get(q.group_id)
           return (
             <fieldset key={q.question_number} className="live-config-q">
@@ -397,18 +453,39 @@ export default function LiveQuizConfig({
               )}
             </fieldset>
           )
-        })}
+            })}
 
-        {saveError && (
-          <p className="login-error" role="alert">
-            {saveError}
-          </p>
-        )}
+          {saveError && (
+            <p className="login-error" role="alert">
+              {saveError}
+            </p>
+          )}
 
-        <button type="submit" className="btn primary" disabled={disabled || saveBusy}>
-          {saveBusy ? 'Saving…' : 'Save groups & questions'}
-        </button>
-      </form>
+          {showSaveFooter && (
+            <div className="live-config-save-bar">
+              <button type="submit" className="btn primary" disabled={disabled || saveBusy}>
+                {saveBusy ? 'Saving…' : 'Save changes'}
+              </button>
+            </div>
+          )}
+        </form>
+      )}
     </section>
+  )
+}
+
+function QuestionsToolbar({ addQuestion, disabled, saveBusy, groupDraft }) {
+  return (
+    <div className="live-config-questions-toolbar">
+      <span className="live-config-questions-title">Questions in this group</span>
+      <button
+        type="button"
+        className="btn ghost"
+        onClick={addQuestion}
+        disabled={disabled || saveBusy || groupDraft.length === 0}
+      >
+        + Add question
+      </button>
+    </div>
   )
 }

@@ -3323,3 +3323,418 @@ a.btn.primary {
   text-align: center;
   color: #ffb4a8;
 }
+
+/* —— Live admin dashboard (full-width shell) —— */
+.live-admin-shell {
+  width: 100%;
+  min-height: 100dvh;
+  background: #e9ece6;
+  box-sizing: border-box;
+}
+
+.live-admin-banner-error {
+  margin: 0;
+  padding: 10px 16px;
+  background: rgba(168, 73, 62, 0.12);
+  color: #8a3d32;
+  text-align: center;
+  font-size: 14px;
+}
+
+.live-admin-layout {
+  display: flex;
+  width: 100%;
+  min-height: 100dvh;
+  align-items: stretch;
+}
+
+.live-admin-sidebar {
+  flex: 0 0 272px;
+  width: 272px;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #163828 0%, #0f2a1f 100%);
+  color: #f4f7ef;
+  padding: 20px 14px;
+  box-sizing: border-box;
+}
+
+.live-admin-sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 4px 8px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  margin-bottom: 16px;
+}
+
+.live-admin-sidebar-logo {
+  width: 52px;
+  height: 52px;
+  object-fit: contain;
+}
+
+.live-admin-sidebar-kicker {
+  margin: 0;
+  font-size: 10px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  opacity: 0.72;
+}
+
+.live-admin-sidebar-title {
+  margin: 2px 0 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.live-admin-sidebar-group {
+  margin: 0 8px 16px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(212, 184, 106, 0.35);
+}
+
+.live-admin-sidebar-group-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.7;
+  margin-bottom: 4px;
+}
+
+.live-admin-sidebar-group-name {
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.live-admin-sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 auto;
+}
+
+.live-admin-sidebar-link {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  gap: 2px;
+  padding: 12px 14px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  color: rgba(244, 247, 239, 0.85);
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.live-admin-sidebar-link:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.live-admin-sidebar-link--active {
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  box-shadow: inset 3px 0 0 #d4b86a;
+}
+
+.live-admin-sidebar-link-label {
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.live-admin-sidebar-link-desc {
+  font-size: 12px;
+  opacity: 0.72;
+}
+
+.live-admin-sidebar-footer {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.live-admin-sidebar-lock {
+  width: 100%;
+  color: #f4f7ef;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.live-admin-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: #f3f5f2;
+}
+
+.live-admin-topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px 20px;
+  padding: 18px 24px 14px;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+
+.live-admin-page-title {
+  margin: 0;
+  font-size: clamp(22px, 2.4vw, 28px);
+  color: var(--green);
+  font-weight: 800;
+}
+
+.live-admin-page-sub {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+.live-admin-topbar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.live-admin-topbar-select {
+  min-width: 12rem;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font-size: 14px;
+  background: #fff;
+}
+
+.live-admin-subtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 12px 24px 0;
+  background: #fff;
+  border-bottom: 1px solid var(--line);
+}
+
+.live-admin-subtab {
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 10px 10px 0 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -1px;
+}
+
+.live-admin-subtab--active {
+  color: var(--green);
+  border-bottom-color: var(--green);
+  background: #f3f5f2;
+}
+
+.live-admin-content {
+  flex: 1 1 auto;
+  padding: 20px 24px 32px;
+  overflow: auto;
+}
+
+.live-admin-pane {
+  max-width: 1200px;
+}
+
+.live-admin-inline-error {
+  margin: 0 24px;
+}
+
+.live-admin-login-wrap {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(165deg, #eef1ec 0%, #dfe6df 100%);
+}
+
+.live-admin-login-card {
+  width: min(420px, 100%);
+  padding: 28px 26px 24px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--line);
+  text-align: center;
+}
+
+.live-admin-login-logo {
+  width: 80px;
+  height: 80px;
+  object-fit: contain;
+  margin-bottom: 12px;
+}
+
+.live-admin-login-title {
+  margin: 0 0 8px;
+  color: var(--green);
+  font-size: 24px;
+}
+
+.live-admin-login-sub {
+  margin: 0 0 20px;
+  font-size: 14px;
+}
+
+.live-admin-login-btn {
+  width: 100%;
+}
+
+.live-panel-head {
+  margin-bottom: 16px;
+}
+
+.live-panel-head-title {
+  margin: 0 0 6px;
+  font-size: 20px;
+  color: var(--green);
+}
+
+.live-panel-head-desc {
+  margin: 0;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.live-config--panel {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 20px 22px;
+}
+
+.live-config-save-bar {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.live-reset-scope-card {
+  background: var(--soft);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.live-reset-scope-title {
+  margin: 0 0 8px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--green);
+}
+
+.live-reset-scope-list {
+  margin: 0 0 14px;
+  padding-left: 1.2rem;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.live-reset-scope-note {
+  margin: 0;
+  font-size: 14px;
+  padding: 10px 12px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+}
+
+.live-config-clear--danger {
+  width: 100%;
+  border-color: rgba(168, 73, 62, 0.45);
+  color: #8a3d32;
+}
+
+.live-btn-danger {
+  background: #8a3d32;
+  border-color: #8a3d32;
+}
+
+.live-admin-preview--card {
+  margin: 16px 0;
+  padding: 16px 18px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+
+.live-admin-preview-value {
+  margin: 6px 0 0;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.live-admin-question-badge {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.live-admin-empty {
+  padding: 24px;
+  text-align: center;
+  background: #fff;
+  border: 1px dashed var(--line);
+  border-radius: 12px;
+}
+
+.live-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 900px) {
+  .live-admin-layout {
+    flex-direction: column;
+  }
+
+  .live-admin-sidebar {
+    width: 100%;
+    flex: none;
+  }
+
+  .live-admin-sidebar-nav {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+
+  .live-admin-sidebar-link {
+    flex: 1 1 140px;
+  }
+
+  .live-admin-topbar,
+  .live-admin-subtabs,
+  .live-admin-content {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+}

@@ -2,7 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { getQuestionFromList } from '../../data/liveQuizQuestions'
 import LiveAdminAnalysisPanel from '../../components/live/LiveAdminAnalysisPanel'
-import LiveAdminHeader from '../../components/live/LiveAdminHeader'
+import LiveAdminSidebar, { liveAdminSectionTitle } from '../../components/live/LiveAdminSidebar'
+import LiveAdminSubTabs from '../../components/live/LiveAdminSubTabs'
 import LiveQuizConfig from '../../components/live/LiveQuizConfig'
 import { LiveUsersDashboard, LiveUsersRoster } from '../../components/live/LiveUsersPanel'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
@@ -52,12 +53,35 @@ function persistSentQuestionSet(set) {
   }
 }
 
-const TABS = [
-  { id: 'host', label: 'Host' },
-  { id: 'users', label: 'Live users' },
-  { id: 'config', label: 'Config' },
-  { id: 'analysis', label: 'Analysis' },
+const HOST_SUBTABS = [
+  { id: 'overview', label: 'Live overview' },
+  { id: 'questions', label: 'Send questions' },
 ]
+
+const USERS_SUBTABS = [
+  { id: 'dashboard', label: 'Summary' },
+  { id: 'roster', label: 'Family list' },
+]
+
+const SETUP_SUBTABS = [
+  { id: 'groups', label: 'Question groups' },
+  { id: 'questions', label: 'Questions' },
+  { id: 'reset', label: 'Reset session' },
+]
+
+function resolveInitialSection(location) {
+  const tab = location.state?.tab
+  if (tab === 'analysis') return 'analysis'
+  if (tab === 'config') return 'setup'
+  return 'host'
+}
+
+function defaultSubTab(section) {
+  if (section === 'users') return 'dashboard'
+  if (section === 'setup') return 'groups'
+  if (section === 'host') return 'overview'
+  return ''
+}
 
 function readStoredPin() {
   try {
@@ -150,8 +174,8 @@ export default function LiveAdminPage() {
   const [stats, setStats] = useState(null)
   const [now, setNow] = useState(() => Date.now())
   const location = useLocation()
-  const initialTab = location.state?.tab === 'analysis' ? 'analysis' : 'host'
-  const [tab, setTab] = useState(initialTab)
+  const [section, setSection] = useState(() => resolveInitialSection(location))
+  const [subTab, setSubTab] = useState(() => defaultSubTab(resolveInitialSection(location)))
   const [suppressSendTicks, setSuppressSendTicks] = useState(readSuppressSendTicks)
   const [sentQuestionNums, setSentQuestionNums] = useState(readSentQuestionSet)
   const [sendRowsRevision, setSendRowsRevision] = useState(0)
@@ -424,225 +448,282 @@ export default function LiveAdminPage() {
     return new Set(ids.map(String))
   }, [stats?.answered_participant_ids])
 
+  const activeGroup = useMemo(
+    () => groups.find((g) => Number(g.id) === Number(activeGroupId)),
+    [groups, activeGroupId],
+  )
+
+  const activeGroupName = activeGroup?.name || 'No group selected'
+  const activeGroupLabel = activeGroup
+    ? `${activeGroup.name} · ${activeGroup.mode === 'competition' ? 'Competition' : 'Poll'}`
+    : null
+
+  function handleSectionChange(next) {
+    setSection(next)
+    setSubTab(defaultSubTab(next))
+  }
+
+  const sectionSubTabs =
+    section === 'host'
+      ? HOST_SUBTABS
+      : section === 'users'
+        ? USERS_SUBTABS
+        : section === 'setup'
+          ? SETUP_SUBTABS
+          : []
+
+  const questionSendList = (
+    <div className="live-admin-questions" key={`send-rows-${sendRowsRevision}`}>
+      {sendableQuestions.length === 0 ? (
+        <p className="live-muted live-admin-empty">
+          No questions in this group yet. Add them under Session setup → Questions.
+        </p>
+      ) : (
+        sendableQuestions.map((q) => {
+          const isLive =
+            display.displayPhase === 'question' && display.questionNumber === q.number
+          const wasSent = !suppressSendTicks && sentQuestionNums.has(q.number)
+          return (
+            <div
+              key={q.number}
+              className={`live-admin-question-row ${wasSent ? 'live-admin-question-row--sent' : ''}`}
+            >
+              <div className="live-admin-question-body">
+                <p className="live-admin-question-badge">
+                  Q{q.number}
+                  {q.isCompetition ? ' · Competition' : ' · Poll'}
+                </p>
+                <h3 className="live-admin-question-title">{q.title}</h3>
+                <ol className="live-admin-option-preview">
+                  {q.options.map((label, idx) => (
+                    <li key={idx}>
+                      <span className="live-admin-option-num">{idx + 1}</span>
+                      <span>{label}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+              <div className="live-admin-send-wrap">
+                {wasSent && (
+                  <span className="live-admin-sent-badge" aria-label="Already sent">
+                    ✓
+                  </span>
+                )}
+                <button
+                  type="button"
+                  className={`btn ${isLive ? 'primary' : 'ghost'} live-send-question-btn`}
+                  onClick={() => sendQuestion(q.number)}
+                  disabled={busy || !supabaseConfigured}
+                >
+                  {isLive ? 'Live' : 'Send'}
+                </button>
+              </div>
+            </div>
+          )
+        })
+      )}
+    </div>
+  )
+
   return (
-    <div className="login-page live-page live-page--admin-wide">
-      <div className="login-card live-card live-card--admin live-card--admin-tabs">
-        <LiveAdminHeader />
+    <div className="live-admin-shell">
+      {!supabaseConfigured && (
+        <p className="live-admin-banner-error" role="alert">
+          Live session is not configured on this server yet.
+        </p>
+      )}
 
-        {!supabaseConfigured && (
-          <p className="login-error" role="alert">
-            Live session is not configured on this server yet.
-          </p>
-        )}
-
-        {pinChecking && (
+      {pinChecking && (
+        <div className="live-admin-login-wrap">
           <p className="live-muted" role="status">
             Checking host PIN…
           </p>
-        )}
+        </div>
+      )}
 
-        {!pinChecking && !pinUnlocked ? (
-          <form className="login-form" onSubmit={handleUnlock}>
-            <label htmlFor="admin-pin">Host PIN</label>
-            <input
-              id="admin-pin"
-              name="adminPin"
-              type="password"
-              autoComplete="off"
-              required
-              value={pinInput}
-              onChange={(e) => setPinInput(e.target.value)}
-              disabled={!supabaseConfigured}
+      {!pinChecking && !pinUnlocked ? (
+        <div className="live-admin-login-wrap">
+          <div className="live-admin-login-card">
+            <img
+              src={`${import.meta.env.BASE_URL}aqqa-logo.png`}
+              alt=""
+              className="live-admin-login-logo"
             />
-            <p className="live-muted live-pin-hint">
-              Host PIN is set in Supabase (<code>live_quiz_secrets</code>). Wrong PIN will not open
-              the dashboard.
+            <h1 className="live-admin-login-title">Live host dashboard</h1>
+            <p className="live-muted live-admin-login-sub">
+              Al Quran Qirat Academy — secure access for session hosts only.
             </p>
-            {actionError && (
-              <p className="login-error" role="alert">
-                {actionError}
-              </p>
-            )}
-            <button type="submit" className="btn primary" disabled={!supabaseConfigured || pinChecking}>
-              Open host controls
-            </button>
-          </form>
-        ) : !pinChecking ? (
-          <>
-            <div className="live-admin-tabs" role="tablist" aria-label="Admin sections">
-              {TABS.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={tab === t.id}
-                  className={`live-admin-tab ${tab === t.id ? 'live-admin-tab--active' : ''}`}
-                  onClick={() => setTab(t.id)}
+            <form className="login-form" onSubmit={handleUnlock}>
+              <label htmlFor="admin-pin">Host PIN</label>
+              <input
+                id="admin-pin"
+                name="adminPin"
+                type="password"
+                autoComplete="off"
+                required
+                value={pinInput}
+                onChange={(e) => setPinInput(e.target.value)}
+                disabled={!supabaseConfigured}
+              />
+              {actionError && (
+                <p className="login-error" role="alert">
+                  {actionError}
+                </p>
+              )}
+              <button
+                type="submit"
+                className="btn primary live-admin-login-btn"
+                disabled={!supabaseConfigured || pinChecking}
+              >
+                Sign in to dashboard
+              </button>
+            </form>
+          </div>
+        </div>
+      ) : !pinChecking ? (
+        <div className="live-admin-layout">
+          <LiveAdminSidebar
+            active={section}
+            onChange={handleSectionChange}
+            onLock={handleLock}
+            activeGroupLabel={activeGroupLabel}
+          />
+
+          <main className="live-admin-main">
+            <header className="live-admin-topbar">
+              <div className="live-admin-topbar-text">
+                <h1 className="live-admin-page-title">{liveAdminSectionTitle(section)}</h1>
+                {section === 'host' && activeGroupLabel && (
+                  <p className="live-admin-page-sub">
+                    Sending questions from <strong>{activeGroupName}</strong>
+                  </p>
+                )}
+              </div>
+              <div className="live-admin-topbar-actions">
+                <label className="live-sr-only" htmlFor="live-host-active-group">
+                  Hosting group
+                </label>
+                <select
+                  id="live-host-active-group"
+                  className="live-admin-topbar-select"
+                  value={activeGroupId ?? ''}
+                  onChange={(e) => handleActiveGroupChange(Number(e.target.value))}
+                  disabled={busy || groups.length === 0}
                 >
-                  {t.label}
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn primary live-present-open"
+                  onClick={openPresentationWindow}
+                >
+                  Presentation screen
                 </button>
-              ))}
-            </div>
+              </div>
+            </header>
+
+            <LiveAdminSubTabs
+              tabs={sectionSubTabs}
+              active={subTab}
+              onChange={setSubTab}
+              ariaLabel={`${liveAdminSectionTitle(section)} sections`}
+            />
 
             {actionError && (
-              <p className="login-error" role="alert">
+              <p className="login-error live-admin-inline-error" role="alert">
                 {actionError}
               </p>
             )}
 
-            {tab === 'host' && (
-              <div className="live-admin-tab-panel" role="tabpanel">
-                <LiveStatsOverview stats={stats} question={statsQuestion} />
-
-                <div className="live-host-toolbar">
-                  <label className="live-host-group-label" htmlFor="live-host-active-group">
-                    Question group
-                  </label>
-                  <select
-                    id="live-host-active-group"
-                    className="live-config-group-select"
-                    value={activeGroupId ?? ''}
-                    onChange={(e) => handleActiveGroupChange(Number(e.target.value))}
-                    disabled={busy || groups.length === 0}
-                  >
-                    {groups.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.name} ({g.mode === 'competition' ? 'Competition' : 'Poll'})
-                      </option>
-                    ))}
-                  </select>
+            <div className="live-admin-content">
+              {section === 'host' && subTab === 'overview' && (
+                <div className="live-admin-pane" role="tabpanel">
+                  <LiveStatsOverview stats={stats} question={statsQuestion} />
+                  <div className="live-admin-preview live-admin-preview--card" aria-live="polite">
+                    <span className="live-admin-preview-label">Parents currently see</span>
+                    <p className="live-admin-preview-value">
+                      {preview.displayPhase === 'waiting' && 'Waiting for the next question'}
+                      {preview.displayPhase === 'question' &&
+                        activeQuestion &&
+                        `${activeQuestion.title} — tap 1–${activeQuestion.optionCount} (${preview.remainingSec}s)`}
+                      {preview.displayPhase === 'timed_out' && 'Timed out — waiting for host'}
+                    </p>
+                  </div>
                   <button
                     type="button"
-                    className="btn ghost live-present-open"
-                    onClick={openPresentationWindow}
+                    className="btn primary live-wait-btn"
+                    onClick={showWait}
+                    disabled={busy || !supabaseConfigured}
                   >
-                    Open presentation screen
+                    End round — show “wait for next” to everyone
                   </button>
+                  <p className="live-muted live-present-hint">
+                    For competition groups, scores are calculated when you end the round. Use
+                    Presentation screen for the leaderboard.
+                  </p>
                 </div>
-                <p className="live-muted live-present-hint">
-                  Open the presentation window and drag it to a projector to show leaderboards and
-                  1st / 2nd / 3rd for competition questions (after you tap “wait for next one”).
-                </p>
+              )}
 
-                <div className="live-admin-preview" aria-live="polite">
-                  <span className="live-admin-preview-label">Audience sees:</span>
-                  {preview.displayPhase === 'waiting' && (
-                    <strong>Waiting for next question</strong>
-                  )}
-                  {preview.displayPhase === 'question' && activeQuestion && (
-                    <strong>
-                      {activeQuestion.title} — all options ({preview.remainingSec}s)
-                    </strong>
-                  )}
-                  {preview.displayPhase === 'timed_out' && <strong>Timed out</strong>}
+              {section === 'host' && subTab === 'questions' && (
+                <div className="live-admin-pane" role="tabpanel">
+                  {questionSendList}
                 </div>
+              )}
 
-                <button
-                  type="button"
-                  className="btn primary live-wait-btn"
-                  onClick={showWait}
-                  disabled={busy || !supabaseConfigured}
-                >
-                  Show “wait for next one” to everyone
-                </button>
-
-                <div className="live-admin-questions" key={`send-rows-${sendRowsRevision}`}>
-                  {sendableQuestions.map((q) => {
-                    const isLive =
-                      display.displayPhase === 'question' &&
-                      display.questionNumber === q.number
-                    const wasSent = !suppressSendTicks && sentQuestionNums.has(q.number)
-                    return (
-                      <div
-                        key={q.number}
-                        className={`live-admin-question-row ${wasSent ? 'live-admin-question-row--sent' : ''}`}
-                      >
-                        <div className="live-admin-question-body">
-                          <h3 className="live-admin-question-title">{q.title}</h3>
-                          <ol className="live-admin-option-preview">
-                            {q.options.map((label, idx) => (
-                              <li key={idx}>
-                                <span className="live-admin-option-num">{idx + 1}</span>
-                                <span>{label}</span>
-                              </li>
-                            ))}
-                          </ol>
-                          <p className="live-admin-q-meta live-muted">
-                            Parents see numbers 1–{q.optionCount} during the live round.
-                          </p>
-                        </div>
-                        <div className="live-admin-send-wrap">
-                          {wasSent && (
-                            <span
-                              className="live-admin-sent-badge"
-                              title="You already sent this question this session"
-                              aria-label="Already sent"
-                            >
-                              ✓
-                            </span>
-                          )}
-                          <button
-                            type="button"
-                            className={`btn ${isLive ? 'primary' : 'ghost'} live-send-question-btn`}
-                            onClick={() => sendQuestion(q.number)}
-                            disabled={busy || !supabaseConfigured}
-                          >
-                            {isLive ? 'Live' : 'Send'}
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
+              {section === 'users' && subTab === 'dashboard' && (
+                <div className="live-admin-pane" role="tabpanel">
+                  <LiveUsersDashboard participants={participants} />
                 </div>
-              </div>
-            )}
+              )}
 
-            {tab === 'users' && (
-              <div className="live-admin-tab-panel" role="tabpanel">
-                <LiveUsersDashboard participants={participants} />
-                <LiveUsersRoster
-                  participants={participants}
-                  now={now}
-                  onRemove={removeParticipant}
-                  busy={busy}
-                  answeredParticipantIds={answeredParticipantIds}
-                  showAnswered={
-                    display.displayPhase === 'question' && Boolean(display.roundId)
-                  }
-                />
-              </div>
-            )}
+              {section === 'users' && subTab === 'roster' && (
+                <div className="live-admin-pane" role="tabpanel">
+                  <LiveUsersRoster
+                    participants={participants}
+                    now={now}
+                    onRemove={removeParticipant}
+                    busy={busy}
+                    answeredParticipantIds={answeredParticipantIds}
+                    showAnswered={
+                      display.displayPhase === 'question' && Boolean(display.roundId)
+                    }
+                  />
+                </div>
+              )}
 
-            {tab === 'config' && (
-              <div className="live-admin-tab-panel" role="tabpanel">
-                <LiveQuizConfig
-                  pin={pin}
-                  groups={groups}
-                  rows={questionRows}
-                  activeGroupId={activeGroupId}
-                  onActiveGroupChange={handleActiveGroupChange}
-                  disabled={busy || !supabaseConfigured}
-                  onSaved={() => {
-                    refreshQuestions()
-                    refreshStats()
-                  }}
-                  onCleared={handleSessionFreshStart}
-                />
-              </div>
-            )}
+              {section === 'setup' && (
+                <div className="live-admin-pane" role="tabpanel">
+                  <LiveQuizConfig
+                    pin={pin}
+                    groups={groups}
+                    rows={questionRows}
+                    view={subTab}
+                    activeGroupName={activeGroupName}
+                    activeGroupId={activeGroupId}
+                    onActiveGroupChange={handleActiveGroupChange}
+                    disabled={busy || !supabaseConfigured}
+                    onSaved={() => {
+                      refreshQuestions()
+                      refreshStats()
+                    }}
+                    onCleared={handleSessionFreshStart}
+                  />
+                </div>
+              )}
 
-            {tab === 'analysis' && (
-              <div className="live-admin-tab-panel" role="tabpanel">
-                <LiveAdminAnalysisPanel pin={pin} />
-              </div>
-            )}
-
-            <button type="button" className="btn ghost live-lock-btn" onClick={handleLock}>
-              Lock host screen
-            </button>
-          </>
-        ) : null}
-      </div>
+              {section === 'analysis' && (
+                <div className="live-admin-pane" role="tabpanel">
+                  <LiveAdminAnalysisPanel pin={pin} />
+                </div>
+              )}
+            </div>
+          </main>
+        </div>
+      ) : null}
     </div>
   )
 }
