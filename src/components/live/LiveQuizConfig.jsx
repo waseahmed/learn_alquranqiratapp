@@ -507,7 +507,8 @@ export default function LiveQuizConfig({
           <header className="live-panel-head">
             <h3 className="live-panel-head-title">Reset answers for a group</h3>
             <p className="live-panel-head-desc">
-              Clears parent answers for every question in the selected group. Families stay joined.
+              Clears parent answers for every question in the selected group. Families stay
+              joined; parent phones show “Please wait” again (they are not removed from the roster).
             </p>
           </header>
 

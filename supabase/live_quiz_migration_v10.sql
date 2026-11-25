@@ -81,6 +81,9 @@ begin
     raise exception 'Invalid admin PIN';
   end if;
 
+  delete from public.live_quiz_votes
+  where participant_id in (select id from public.live_quiz_participants);
+
   delete from public.live_quiz_participants;
   get diagnostics removed = row_count;
   return removed;

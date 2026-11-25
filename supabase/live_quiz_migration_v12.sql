@@ -1,0 +1,85 @@
+-- Fix remove-all participants and group reset returning parents to "wait" state
+
+create or replace function public.live_quiz_admin_remove_all_participants(p_pin text)
+returns bigint
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  removed bigint;
+begin
+  if not public.live_quiz_check_pin(p_pin) then
+    raise exception 'Invalid admin PIN';
+  end if;
+
+  delete from public.live_quiz_votes
+  where participant_id in (select id from public.live_quiz_participants);
+
+  delete from public.live_quiz_participants;
+  get diagnostics removed = row_count;
+  return removed;
+end;
+$$;
+
+grant execute on function public.live_quiz_admin_remove_all_participants(text) to anon, authenticated;
+
+create or replace function public.live_quiz_admin_clear_group_answers(p_pin text, p_group_id int)
+returns void
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  s public.live_quiz_state;
+  qnums int[];
+  gname text;
+  reset_on_air boolean := false;
+begin
+  if not public.live_quiz_check_pin(p_pin) then
+    raise exception 'Invalid admin PIN';
+  end if;
+
+  select name into gname from public.live_quiz_groups where id = p_group_id;
+  if gname is null then
+    raise exception 'Unknown group';
+  end if;
+
+  select coalesce(array_agg(q.question_number), array[]::int[])
+  into qnums
+  from public.live_quiz_questions q
+  where q.group_id = p_group_id;
+
+  if cardinality(qnums) > 0 then
+    delete from public.live_quiz_votes v
+    where v.question_number = any(qnums);
+  end if;
+
+  select * into s from public.live_quiz_state where id = 1;
+
+  if s.question_number is not null then
+    select exists (
+      select 1
+      from public.live_quiz_questions q
+      where q.question_number = s.question_number
+        and q.group_id = p_group_id
+    )
+    into reset_on_air;
+  end if;
+
+  if reset_on_air then
+    update public.live_quiz_state
+    set
+      phase = 'waiting',
+      question_number = null,
+      selected_option = null,
+      round_id = gen_random_uuid(),
+      last_podium = null,
+      phase_started_at = now(),
+      updated_at = now()
+    where id = 1;
+  end if;
+end;
+$$;
+
+grant execute on function public.live_quiz_admin_clear_group_answers(text, int) to anon, authenticated;

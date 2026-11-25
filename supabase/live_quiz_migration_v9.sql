@@ -96,7 +96,12 @@ begin
 
   select * into s from public.live_quiz_state where id = 1;
 
-  if s.question_number is not null and s.question_number = any(qnums) then
+  if s.question_number is not null and exists (
+    select 1
+    from public.live_quiz_questions q
+    where q.question_number = s.question_number
+      and q.group_id = p_group_id
+  ) then
     update public.live_quiz_state
     set
       phase = 'waiting',

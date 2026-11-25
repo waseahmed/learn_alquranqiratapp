@@ -122,18 +122,6 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
     onAnswerConfetti()
   }
 
-  if (loading) {
-    return <p className="live-muted">Connecting to the session…</p>
-  }
-
-  if (loadError) {
-    return (
-      <p className="login-error" role="alert">
-        {loadError}
-      </p>
-    )
-  }
-
   const votedLabel =
     votedOption && question ? getFullOptionLabel(question, votedOption) : null
 
@@ -146,6 +134,18 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
     ? roundResults.ranking
     : roundResults?.places || []
 
+  if (loading) {
+    return <p className="live-muted">Connecting to the session…</p>
+  }
+
+  if (loadError) {
+    return (
+      <p className="login-error" role="alert">
+        {loadError}
+      </p>
+    )
+  }
+
   return (
     <div className={`live-screen ${revealAnim ? 'live-screen--reveal' : ''}`}>
       <p className="live-welcome">
@@ -156,6 +156,13 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
         <div className="live-panel live-panel--wait">
           <h2 className="live-panel-title">Please wait</h2>
           <p className="live-muted">The host will show the next question soon.</p>
+        </div>
+      )}
+
+      {displayPhase === 'question' && !question && (
+        <div className="live-panel live-panel--wait">
+          <h2 className="live-panel-title">Please wait</h2>
+          <p className="live-muted">The host is preparing the next question…</p>
         </div>
       )}
 

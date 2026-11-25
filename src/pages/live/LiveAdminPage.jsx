@@ -251,7 +251,7 @@ export default function LiveAdminPage() {
   const refreshParticipants = useCallback(async () => {
     if (!pinUnlocked || !pin) return
     const { data, error } = await adminListParticipants(pin)
-    if (!error && data) setParticipants(data)
+    if (!error) setParticipants(Array.isArray(data) ? data : [])
   }, [pin, pinUnlocked])
 
   useEffect(() => {
@@ -323,12 +323,19 @@ export default function LiveAdminPage() {
     }
     setActionError('')
     setBusy(true)
-    const { error } = await adminRemoveAllParticipants(pin)
+    const { data: removedCount, error } = await adminRemoveAllParticipants(pin)
     setBusy(false)
     if (error) {
-      setActionError(error.message || 'Could not remove all participants.')
+      const msg = error.message || 'Could not remove all participants.'
+      setActionError(
+        /function.*does not exist|could not find/i.test(msg)
+          ? `${msg} Run supabase/live_quiz_migration_v10.sql (or v12) on your database.`
+          : msg,
+      )
       return
     }
+    setParticipants([])
+    setActionError('')
     refreshParticipants()
     refreshStats()
   }
