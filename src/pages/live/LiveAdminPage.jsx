@@ -92,7 +92,7 @@ function readStoredPin() {
   }
 }
 
-function LiveStatsOverview({ stats, question }) {
+function LiveStatsOverview({ stats, question, roundLive }) {
   if (!stats) return null
 
   const counts = (stats.option_counts || [0, 0, 0]).map(Number)
@@ -100,19 +100,18 @@ function LiveStatsOverview({ stats, question }) {
   const answered = Number(stats.answered_count) || 0
   const notAnswered = Math.max(0, totalJoined - answered)
 
-  const optionLabels = question?.options?.length
-    ? question.options
-    : ['Answer 1', 'Answer 2', 'Answer 3'].slice(0, 3)
+  const optionLabels =
+    roundLive && question?.options?.length
+      ? question.options
+      : roundLive
+        ? ['Answer 1', 'Answer 2', 'Answer 3']
+        : []
 
   return (
     <section className="live-stats-panel" aria-labelledby="live-stats-heading">
       <h3 id="live-stats-heading" className="live-stats-heading">
         Answer overview
-        {question?.title
-          ? ` — ${question.title}`
-          : stats.question_number
-            ? ` — Question ${stats.question_number}`
-            : ''}
+        {roundLive && question?.title ? ` — ${question.title}` : ''}
       </h3>
       <ul className="live-stats-summary">
         <li>
@@ -128,6 +127,11 @@ function LiveStatsOverview({ stats, question }) {
           <span className="live-stats-v">{notAnswered}</span>
         </li>
       </ul>
+      {!roundLive && (
+        <p className="live-muted live-stats-idle-hint">
+          No question is on air. Stats below update when you send a question.
+        </p>
+      )}
       <ul className="live-stats-votes">
         {optionLabels.map((label, idx) => {
           const n = Number(counts[idx]) || 0
@@ -228,10 +232,15 @@ export default function LiveAdminPage() {
     }
   }, [])
 
-  const activeQuestion = useMemo(
-    () => getQuestionFromList(questionRows, display.questionNumber),
-    [questionRows, display.questionNumber],
-  )
+  /** Question actually on parent screens (from server state), not the hosting-group filter. */
+  const liveQuestion = useMemo(() => {
+    if (!display.questionNumber) return null
+    return display.question || getQuestionFromList(questionRows, display.questionNumber)
+  }, [display.question, display.questionNumber, questionRows])
+
+  const roundOnAir = display.displayPhase === 'question'
+  const roundEnded = display.displayPhase === 'timed_out'
+  const statsRoundQuestion = roundOnAir || roundEnded ? liveQuestion : null
 
   const refreshStats = useCallback(async () => {
     if (!pinUnlocked || !pin) return
@@ -461,8 +470,6 @@ export default function LiveAdminPage() {
   }
 
   const preview = display
-  const statsQuestion =
-    activeQuestion || getQuestionFromList(questionRows, stats?.question_number) || null
 
   const answeredParticipantIds = useMemo(() => {
     const ids = stats?.answered_participant_ids
@@ -664,16 +671,39 @@ export default function LiveAdminPage() {
             <div className="live-admin-content">
               {section === 'host' && subTab === 'overview' && (
                 <div className="live-admin-pane" role="tabpanel">
-                  <LiveStatsOverview stats={stats} question={statsQuestion} />
+                  <LiveStatsOverview
+                    stats={stats}
+                    question={statsRoundQuestion}
+                    roundLive={roundOnAir || roundEnded}
+                  />
                   <div className="live-admin-preview live-admin-preview--card" aria-live="polite">
                     <span className="live-admin-preview-label">Parents currently see</span>
                     <p className="live-admin-preview-value">
-                      {preview.displayPhase === 'waiting' && 'Waiting for the next question'}
-                      {preview.displayPhase === 'question' &&
-                        activeQuestion &&
-                        `${activeQuestion.title} — tap 1–${activeQuestion.optionCount} (${preview.remainingSec}s)`}
-                      {preview.displayPhase === 'timed_out' && 'Timed out — waiting for host'}
+                      {preview.displayPhase === 'waiting' && (
+                        <span className="live-preview-muted">Waiting for the next question</span>
+                      )}
+                      {preview.displayPhase === 'question' && liveQuestion && (
+                        <>
+                          <strong>{liveQuestion.title}</strong>
+                          <span className="live-preview-meta">
+                            {' '}
+                            — tap 1–{liveQuestion.optionCount} ({preview.remainingSec}s left)
+                          </span>
+                        </>
+                      )}
+                      {preview.displayPhase === 'question' && !liveQuestion && (
+                        <span className="live-preview-muted">—</span>
+                      )}
+                      {preview.displayPhase === 'timed_out' && (
+                        <span className="live-preview-muted">—</span>
+                      )}
                     </p>
+                    {preview.displayPhase === 'timed_out' && (
+                      <p className="live-muted live-preview-note">
+                        Timer ended. Nothing new on parent screens until you send a question or end
+                        the round.
+                      </p>
+                    )}
                   </div>
                   <button
                     type="button"
