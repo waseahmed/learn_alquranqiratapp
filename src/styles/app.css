@@ -3010,6 +3010,23 @@ a.btn.primary {
   font-weight: 800;
 }
 
+.live-roster-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.live-roster-toolbar .live-stats-heading {
+  margin: 0;
+}
+
+.live-roster-remove-all {
+  flex: 0 0 auto;
+}
+
 .live-roster-info {
   display: flex;
   flex-direction: column;

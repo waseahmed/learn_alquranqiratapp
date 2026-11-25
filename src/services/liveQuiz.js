@@ -89,6 +89,14 @@ export async function adminRemoveParticipant(pin, participantId) {
   return { data: null, error }
 }
 
+export async function adminRemoveAllParticipants(pin) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { data, error } = await supabase.rpc('live_quiz_admin_remove_all_participants', {
+    p_pin: pin,
+  })
+  return { data, error }
+}
+
 export async function adminLiveQuizDetailedAnalysis(pin) {
   if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
   const { data, error } = await supabase.rpc('live_quiz_admin_detailed_analysis', {

@@ -11,6 +11,7 @@ import { useLiveQuizQuestions } from '../../hooks/useLiveQuizQuestions'
 import {
   adminListParticipants,
   adminLiveQuizStats,
+  adminRemoveAllParticipants,
   adminRemoveParticipant,
   adminSetActiveGroup,
   adminShowOption,
@@ -302,6 +303,27 @@ export default function LiveAdminPage() {
     refreshStats()
   }
 
+  async function removeAllParticipants() {
+    if (participants.length === 0) return
+    if (
+      !window.confirm(
+        `Remove all ${participants.length} connected families? They will need to join again.`,
+      )
+    ) {
+      return
+    }
+    setActionError('')
+    setBusy(true)
+    const { error } = await adminRemoveAllParticipants(pin)
+    setBusy(false)
+    if (error) {
+      setActionError(error.message || 'Could not remove all participants.')
+      return
+    }
+    refreshParticipants()
+    refreshStats()
+  }
+
   async function handleUnlock(e) {
     e.preventDefault()
     setActionError('')
@@ -479,7 +501,7 @@ export default function LiveAdminPage() {
           No questions in this group yet. Add them under Session setup → Questions.
         </p>
       ) : (
-        sendableQuestions.map((q) => {
+        sendableQuestions.map((q, idx) => {
           const isLive =
             display.displayPhase === 'question' && display.questionNumber === q.number
           const wasSent = !suppressSendTicks && sentQuestionNums.has(q.number)
@@ -490,7 +512,7 @@ export default function LiveAdminPage() {
             >
               <div className="live-admin-question-body">
                 <p className="live-admin-question-badge">
-                  Q{q.number}
+                  Question {idx + 1} in group
                   {q.isCompetition ? ' · Competition' : ' · Poll'}
                 </p>
                 <h3 className="live-admin-question-title">{q.title}</h3>
@@ -685,8 +707,9 @@ export default function LiveAdminPage() {
                   <LiveUsersRoster
                     participants={participants}
                     now={now}
-                    onRemove={removeParticipant}
-                    busy={busy}
+                  onRemove={removeParticipant}
+                  onRemoveAll={removeAllParticipants}
+                  busy={busy}
                     answeredParticipantIds={answeredParticipantIds}
                     showAnswered={
                       display.displayPhase === 'question' && Boolean(display.roundId)

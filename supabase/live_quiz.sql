@@ -7,7 +7,7 @@ create table if not exists public.live_quiz_state (
   phase text not null default 'waiting'
     check (phase in ('waiting', 'question')),
   question_number int
-    check (question_number is null or (question_number >= 1 and question_number <= 5)),
+    check (question_number is null or (question_number >= 1 and question_number <= 99)),
   selected_option int
     check (selected_option is null or (selected_option >= 1 and selected_option <= 3)),
   round_id uuid not null default gen_random_uuid(),
@@ -45,7 +45,7 @@ create table if not exists public.live_quiz_votes (
   id uuid primary key default gen_random_uuid(),
   round_id uuid not null,
   participant_id uuid not null references public.live_quiz_participants (id) on delete cascade,
-  question_number int not null check (question_number >= 1 and question_number <= 5),
+  question_number int not null check (question_number >= 1 and question_number <= 99),
   option_number int not null check (option_number >= 1 and option_number <= 3),
   created_at timestamptz not null default now(),
   unique (round_id, participant_id)
@@ -129,8 +129,8 @@ begin
     raise exception 'Invalid admin PIN';
   end if;
 
-  if p_question < 1 or p_question > 5 then
-    raise exception 'Question must be 1–5';
+  if p_question < 1 or p_question > 99 then
+    raise exception 'Question must be 1–99';
   end if;
   if p_option < 1 or p_option > 3 then
     raise exception 'Option must be 1–3';

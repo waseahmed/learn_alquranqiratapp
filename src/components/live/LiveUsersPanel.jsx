@@ -43,15 +43,28 @@ export function LiveUsersRoster({
   participants,
   now,
   onRemove,
+  onRemoveAll,
   busy,
   answeredParticipantIds = new Set(),
   showAnswered = false,
 }) {
   return (
     <section className="live-roster" aria-labelledby="live-roster-heading">
-      <h3 id="live-roster-heading" className="live-stats-heading">
-        Connected families
-      </h3>
+      <div className="live-roster-toolbar">
+        <h3 id="live-roster-heading" className="live-stats-heading">
+          Connected families
+        </h3>
+        {participants.length > 0 && (
+          <button
+            type="button"
+            className="btn ghost live-btn-danger-outline live-roster-remove-all"
+            onClick={onRemoveAll}
+            disabled={busy}
+          >
+            Remove all
+          </button>
+        )}
+      </div>
       <p className="live-muted live-roster-hint">
         Parents stay connected if they revisit the link until you remove them here.
       </p>
