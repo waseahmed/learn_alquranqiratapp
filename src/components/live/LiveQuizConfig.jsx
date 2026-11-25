@@ -1,14 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  adminClearLiveQuizAnswers,
+  adminClearGroupAnswers,
+  adminDeleteLiveQuizGroup,
+  adminDeleteLiveQuizQuestion,
   adminSaveLiveQuizSessionConfig,
 } from '../../services/liveQuiz'
+import LiveSlideDrawer from './LiveSlideDrawer'
 
 const ACTIVE_GROUP_KEY = 'aqqa_live_active_group_id'
 
 function nextQuestionNumber(questions) {
   const max = questions.reduce((m, q) => Math.max(m, q.question_number || 0), 0)
   return Math.min(99, max + 1)
+}
+
+function emptyQuestion(groupId) {
+  return {
+    question_number: null,
+    group_id: groupId,
+    title: '',
+    option_1_text: '',
+    option_2_text: '',
+    option_3_text: '',
+    correct_option: '',
+  }
 }
 
 export default function LiveQuizConfig({
@@ -21,7 +36,6 @@ export default function LiveQuizConfig({
   activeGroupId,
   onActiveGroupChange,
   view = 'groups',
-  activeGroupName = '—',
 }) {
   const [groupDraft, setGroupDraft] = useState([])
   const [questionDraft, setQuestionDraft] = useState([])
@@ -30,6 +44,10 @@ export default function LiveQuizConfig({
   const [saveBusy, setSaveBusy] = useState(false)
   const [clearBusy, setClearBusy] = useState(false)
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false)
+  const [resetGroupId, setResetGroupId] = useState(activeGroupId ?? null)
+
+  const [groupDrawer, setGroupDrawer] = useState({ open: false, mode: 'add', draft: null })
+  const [questionDrawer, setQuestionDrawer] = useState({ open: false, mode: 'add', draft: null })
 
   useEffect(() => {
     if (!groupsProp?.length) return
@@ -59,130 +77,209 @@ export default function LiveQuizConfig({
   }, [rows, groupsProp])
 
   useEffect(() => {
-    if (activeGroupId != null) setFilterGroupId(activeGroupId)
+    if (activeGroupId != null && activeGroupId > 0) {
+      setFilterGroupId(activeGroupId)
+      setResetGroupId(activeGroupId)
+    }
   }, [activeGroupId])
 
-  const groupModeById = useMemo(() => {
-    const map = new Map()
-    groupDraft.forEach((g) => map.set(g.id, g.mode))
-    return map
-  }, [groupDraft])
+  const savedGroups = useMemo(() => groupDraft.filter((g) => g.id > 0), [groupDraft])
 
-  const filteredQuestions = useMemo(
-    () =>
-      filterGroupId == null
-        ? questionDraft
-        : questionDraft.filter((q) => Number(q.group_id) === Number(filterGroupId)),
-    [questionDraft, filterGroupId],
-  )
+  const questionCountByGroup = useMemo(() => {
+    const m = new Map()
+    questionDraft.forEach((q) => {
+      const id = q.group_id
+      m.set(id, (m.get(id) || 0) + 1)
+    })
+    return m
+  }, [questionDraft])
 
-  function updateGroup(id, field, value) {
-    setGroupDraft((prev) => prev.map((g) => (g.id === id ? { ...g, [field]: value } : g)))
-  }
+  const filteredQuestions = useMemo(() => {
+    if (!filterGroupId) return []
+    return questionDraft.filter((q) => Number(q.group_id) === Number(filterGroupId))
+  }, [questionDraft, filterGroupId])
 
-  function addGroup() {
-    const tempId = -Date.now()
-    setGroupDraft((prev) => [
-      ...prev,
-      {
-        id: tempId,
-        name: `Group ${prev.length + 1}`,
-        mode: 'poll',
-        sort_order: prev.length,
-      },
-    ])
-    setFilterGroupId(tempId)
-    onActiveGroupChange?.(tempId)
-  }
+  const filterGroup = savedGroups.find((g) => Number(g.id) === Number(filterGroupId))
+  const resetGroup = savedGroups.find((g) => Number(g.id) === Number(resetGroupId))
 
-  function updateQuestion(num, field, value) {
-    setQuestionDraft((prev) =>
-      prev.map((q) => (q.question_number === num ? { ...q, [field]: value } : q)),
-    )
-  }
-
-  function addQuestion() {
-    const gid = filterGroupId ?? groupDraft[0]?.id ?? 1
-    if (!gid || gid < 1) {
-      setSaveError('Save your new group first (Save groups & questions), then add questions.')
-      return
-    }
-    const num = nextQuestionNumber(questionDraft)
-    setQuestionDraft((prev) => [
-      ...prev,
-      {
-        question_number: num,
-        group_id: gid,
-        title: '',
-        option_1_text: '',
-        option_2_text: '',
-        option_3_text: '',
-        correct_option: '',
-      },
-    ])
-  }
-
-  async function handleSave(e) {
-    e.preventDefault()
-    setSaveError('')
-    setSaveBusy(true)
-    const groupsPayload = groupDraft.map((g, idx) => ({
+  async function persistSession(groupsToSave, questionsToSave) {
+    const groupsPayload = groupsToSave.map((g, idx) => ({
       id: g.id > 0 ? g.id : null,
       name: g.name.trim() || `Group ${idx + 1}`,
       mode: g.mode === 'competition' ? 'competition' : 'poll',
       sort_order: idx,
     }))
-    const badGroup = questionDraft.find((q) => !q.group_id || q.group_id < 1)
-    if (badGroup) {
-      setSaveBusy(false)
-      setSaveError('Save once after adding a new group, then add questions to it.')
-      return
-    }
 
-    const questionsPayload = questionDraft.map((q) => {
-      const mode = groupModeById.get(q.group_id)
-      const correct =
-        mode === 'competition' && q.correct_option !== '' && q.correct_option != null
-          ? Number(q.correct_option)
-          : null
-      return {
-        question_number: q.question_number,
-        group_id: q.group_id > 0 ? q.group_id : groupsPayload[0]?.id,
-        title: q.title.trim(),
-        option_1_text: q.option_1_text.trim() || null,
-        option_2_text: q.option_2_text.trim() || null,
-        option_3_text: q.option_3_text.trim() || null,
-        correct_option: correct,
-      }
-    })
-    const { data, error } = await adminSaveLiveQuizSessionConfig(
-      pin,
-      groupsPayload,
-      questionsPayload,
-    )
-    setSaveBusy(false)
-    if (error) {
-      setSaveError(error.message || 'Could not save session setup.')
-      return
-    }
+    const modeMap = new Map(groupsToSave.map((g) => [g.id, g.mode]))
+
+    const questionsPayload = questionsToSave
+      .filter((q) => q.group_id > 0)
+      .map((q) => {
+        const mode = modeMap.get(q.group_id)
+        const correct =
+          mode === 'competition' && q.correct_option !== '' && q.correct_option != null
+            ? Number(q.correct_option)
+            : null
+        return {
+          question_number: q.question_number,
+          group_id: q.group_id,
+          title: q.title.trim(),
+          option_1_text: q.option_1_text.trim() || null,
+          option_2_text: q.option_2_text.trim() || null,
+          option_3_text: q.option_3_text.trim() || null,
+          correct_option: correct,
+        }
+      })
+
+    const { data, error } = await adminSaveLiveQuizSessionConfig(pin, groupsPayload, questionsPayload)
+    if (error) throw error
     onSaved?.(data)
+    return data
   }
 
-  async function confirmClearAnswers() {
+  async function saveGroupFromDrawer() {
+    const d = groupDrawer.draft
+    if (!d?.name?.trim()) {
+      setSaveError('Enter a group name.')
+      return
+    }
+    setSaveError('')
+    setSaveBusy(true)
+    try {
+      let nextGroups = [...groupDraft]
+      if (groupDrawer.mode === 'add') {
+        const tempId = -Date.now()
+        nextGroups = [
+          ...nextGroups,
+          { id: tempId, name: d.name.trim(), mode: d.mode, sort_order: nextGroups.length },
+        ]
+      } else {
+        nextGroups = nextGroups.map((g) =>
+          g.id === d.id ? { ...g, name: d.name.trim(), mode: d.mode } : g,
+        )
+      }
+      setGroupDraft(nextGroups)
+      await persistSession(nextGroups, questionDraft)
+      setGroupDrawer({ open: false, mode: 'add', draft: null })
+    } catch (err) {
+      setSaveError(err.message || 'Could not save group.')
+    } finally {
+      setSaveBusy(false)
+    }
+  }
+
+  async function saveQuestionFromDrawer() {
+    const d = questionDrawer.draft
+    if (!d?.title?.trim()) {
+      setSaveError('Enter the question text.')
+      return
+    }
+    if (!d.option_1_text?.trim()) {
+      setSaveError('Answer 1 is required.')
+      return
+    }
+    const gid = filterGroupId
+    if (!gid || gid < 1) {
+      setSaveError('Select a saved group first.')
+      return
+    }
+    const mode = filterGroup?.mode
+    if (mode === 'competition' && !d.correct_option) {
+      setSaveError('Select the correct answer for competition groups.')
+      return
+    }
+
+    setSaveError('')
+    setSaveBusy(true)
+    try {
+      let nextQuestions = [...questionDraft]
+      if (questionDrawer.mode === 'add') {
+        const num = nextQuestionNumber(nextQuestions)
+        nextQuestions.push({
+          ...d,
+          question_number: num,
+          group_id: gid,
+        })
+      } else {
+        nextQuestions = nextQuestions.map((q) =>
+          q.question_number === d.question_number ? { ...d, group_id: gid } : q,
+        )
+      }
+      setQuestionDraft(nextQuestions)
+      await persistSession(groupDraft, nextQuestions)
+      setQuestionDrawer({ open: false, mode: 'add', draft: null })
+    } catch (err) {
+      setSaveError(err.message || 'Could not save question.')
+    } finally {
+      setSaveBusy(false)
+    }
+  }
+
+  async function deleteGroup(groupId) {
+    const count = questionCountByGroup.get(groupId) || 0
+    const g = groupDraft.find((x) => x.id === groupId)
+    const msg =
+      count > 0
+        ? `Delete “${g?.name}” and its ${count} question(s)? This cannot be undone.`
+        : `Delete group “${g?.name}”?`
+    if (!window.confirm(msg)) return
+
+    setSaveError('')
+    setSaveBusy(true)
+    try {
+      const { error } = await adminDeleteLiveQuizGroup(pin, groupId)
+      if (error) throw error
+      const nextGroups = groupDraft.filter((g) => g.id !== groupId)
+      const nextQuestions = questionDraft.filter((q) => q.group_id !== groupId)
+      setGroupDraft(nextGroups)
+      setQuestionDraft(nextQuestions)
+      onSaved?.()
+      if (filterGroupId === groupId) {
+        const nextId = nextGroups[0]?.id > 0 ? nextGroups[0].id : null
+        handleGroupFilterChange(nextId)
+      }
+    } catch (err) {
+      setSaveError(err.message || 'Could not delete group.')
+    } finally {
+      setSaveBusy(false)
+    }
+  }
+
+  async function deleteQuestion(questionNumber) {
+    if (!window.confirm(`Delete question Q${questionNumber}?`)) return
+    setSaveError('')
+    setSaveBusy(true)
+    try {
+      const { error } = await adminDeleteLiveQuizQuestion(pin, questionNumber)
+      if (error) throw error
+      setQuestionDraft((prev) => prev.filter((q) => q.question_number !== questionNumber))
+      onSaved?.()
+    } catch (err) {
+      setSaveError(err.message || 'Could not delete question.')
+    } finally {
+      setSaveBusy(false)
+    }
+  }
+
+  async function confirmClearGroup() {
+    if (!resetGroupId || resetGroupId < 1) {
+      setSaveError('Select a group to reset.')
+      return
+    }
     setSaveError('')
     setClearBusy(true)
-    const { error } = await adminClearLiveQuizAnswers(pin)
+    const { error } = await adminClearGroupAnswers(pin, resetGroupId)
     setClearBusy(false)
     setClearConfirmOpen(false)
     if (error) {
-      setSaveError(error.message || 'Could not clear answers.')
+      setSaveError(error.message || 'Could not reset group.')
       return
     }
     onCleared?.()
   }
 
   function handleGroupFilterChange(id) {
-    const parsed = id === '' ? null : Number(id)
+    const parsed = id == null ? null : Number(id)
     setFilterGroupId(parsed)
     onActiveGroupChange?.(parsed)
     try {
@@ -192,82 +289,151 @@ export default function LiveQuizConfig({
     }
   }
 
-  const showSaveFooter = view === 'groups' || view === 'questions'
+  function openAddGroup() {
+    setGroupDrawer({
+      open: true,
+      mode: 'add',
+      draft: { id: null, name: '', mode: 'poll' },
+    })
+  }
+
+  function openEditGroup(g) {
+    setGroupDrawer({
+      open: true,
+      mode: 'edit',
+      draft: { id: g.id, name: g.name, mode: g.mode },
+    })
+  }
+
+  function openAddQuestion() {
+    if (!filterGroupId || filterGroupId < 1) {
+      setSaveError('Select a saved group before adding questions.')
+      return
+    }
+    setQuestionDrawer({ open: true, mode: 'add', draft: emptyQuestion(filterGroupId) })
+  }
+
+  function openEditQuestion(q) {
+    setQuestionDrawer({
+      open: true,
+      mode: 'edit',
+      draft: { ...q },
+    })
+  }
+
+  const groupDrawerFooter = (
+    <>
+      <button type="button" className="btn ghost" onClick={() => setGroupDrawer({ open: false, mode: 'add', draft: null })} disabled={saveBusy}>
+        Cancel
+      </button>
+      <button type="button" className="btn primary" onClick={saveGroupFromDrawer} disabled={disabled || saveBusy}>
+        {saveBusy ? 'Saving…' : 'Save group'}
+      </button>
+    </>
+  )
+
+  const questionDrawerFooter = (
+    <>
+      <button
+        type="button"
+        className="btn ghost"
+        onClick={() => setQuestionDrawer({ open: false, mode: 'add', draft: null })}
+        disabled={saveBusy}
+      >
+        Cancel
+      </button>
+      <button type="button" className="btn primary" onClick={saveQuestionFromDrawer} disabled={disabled || saveBusy}>
+        {saveBusy ? 'Saving…' : 'Save question'}
+      </button>
+    </>
+  )
 
   return (
-    <section className="live-config live-config--panel" aria-labelledby="live-config-heading">
+    <section className="live-config live-config--panel">
+      {saveError && (
+        <p className="login-error live-config-error" role="alert">
+          {saveError}
+        </p>
+      )}
+
       {view === 'groups' && (
         <>
-          <header className="live-panel-head">
-            <h3 id="live-config-heading" className="live-panel-head-title">
-              Question groups
-            </h3>
-            <p className="live-panel-head-desc">
-              Each group is either a <strong>poll</strong> (opinions) or a{' '}
-              <strong>competition</strong> (one correct answer, speed scoring).
-            </p>
+          <header className="live-config-toolbar">
+            <div>
+              <h3 className="live-panel-head-title">Question groups</h3>
+              <p className="live-panel-head-desc">Manage poll and competition sessions.</p>
+            </div>
+            <button type="button" className="btn primary" onClick={openAddGroup} disabled={disabled || saveBusy}>
+              + Add group
+            </button>
           </header>
 
-          <label className="live-config-filter-label" htmlFor="live-config-active-group">
+          <label className="live-config-filter-label" htmlFor="live-config-hosting-group">
             Default group when hosting
           </label>
           <select
-            id="live-config-active-group"
+            id="live-config-hosting-group"
             className="live-config-group-select"
-            value={filterGroupId ?? ''}
-            onChange={(e) => handleGroupFilterChange(e.target.value)}
-            disabled={disabled || saveBusy}
+            value={filterGroupId && filterGroupId > 0 ? filterGroupId : ''}
+            onChange={(e) => handleGroupFilterChange(Number(e.target.value))}
+            disabled={disabled || saveBusy || savedGroups.length === 0}
           >
-            {groupDraft.map((g) => (
+            {savedGroups.map((g) => (
               <option key={g.id} value={g.id}>
-                {g.name} ({g.mode === 'competition' ? 'Competition' : 'Poll'})
+                {g.name}
               </option>
             ))}
           </select>
 
-          <fieldset className="live-config-groups">
-        <legend className="live-config-legend">Question groups</legend>
-        {groupDraft.map((g) => (
-          <div key={g.id} className="live-config-group-row">
-            <input
-              type="text"
-              aria-label="Group name"
-              value={g.name}
-              onChange={(e) => updateGroup(g.id, 'name', e.target.value)}
-              disabled={disabled || saveBusy}
-            />
-            <select
-              aria-label="Group mode"
-              value={g.mode}
-              onChange={(e) => updateGroup(g.id, 'mode', e.target.value)}
-              disabled={disabled || saveBusy}
-            >
-              <option value="poll">Poll (opinions)</option>
-              <option value="competition">Competition (correct answer)</option>
-            </select>
-          </div>
-        ))}
-            <button
-              type="button"
-              className="btn ghost live-config-add-group"
-              onClick={addGroup}
-              disabled={disabled || saveBusy}
-            >
-              + Add group
-            </button>
-          </fieldset>
+          {savedGroups.length === 0 ? (
+            <p className="live-muted live-admin-empty">No groups yet. Add your first group.</p>
+          ) : (
+            <ul className="live-group-grid">
+              {savedGroups.map((g) => (
+                <li key={g.id} className="live-group-card">
+                  <span className={`live-group-card-badge live-group-card-badge--${g.mode}`}>
+                    {g.mode === 'competition' ? 'Competition' : 'Poll'}
+                  </span>
+                  <h4 className="live-group-card-name">{g.name}</h4>
+                  <p className="live-group-card-meta">
+                    {questionCountByGroup.get(g.id) || 0} question
+                    {(questionCountByGroup.get(g.id) || 0) === 1 ? '' : 's'}
+                  </p>
+                  <div className="live-group-card-actions">
+                    <button type="button" className="btn ghost" onClick={() => openEditGroup(g)} disabled={disabled || saveBusy}>
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost live-btn-danger-outline"
+                      onClick={() => deleteGroup(g.id)}
+                      disabled={disabled || saveBusy}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
 
       {view === 'questions' && (
         <>
-          <header className="live-panel-head">
-            <h3 className="live-panel-head-title">Questions</h3>
-            <p className="live-panel-head-desc">
-              Editing questions in{' '}
-              <strong>{groupDraft.find((g) => g.id === filterGroupId)?.name || 'selected group'}</strong>
-              . Parents see numbers only during the live round.
-            </p>
+          <header className="live-config-toolbar">
+            <div>
+              <h3 className="live-panel-head-title">Questions</h3>
+              <p className="live-panel-head-desc">Add and edit questions for one group at a time.</p>
+            </div>
+            <button
+              type="button"
+              className="btn primary"
+              onClick={openAddQuestion}
+              disabled={disabled || saveBusy || !filterGroupId || filterGroupId < 1}
+            >
+              + Add question
+            </button>
           </header>
 
           <label className="live-config-filter-label" htmlFor="live-config-q-group">
@@ -276,94 +442,131 @@ export default function LiveQuizConfig({
           <select
             id="live-config-q-group"
             className="live-config-group-select"
-            value={filterGroupId ?? ''}
-            onChange={(e) => handleGroupFilterChange(e.target.value)}
-            disabled={disabled || saveBusy}
+            value={filterGroupId && filterGroupId > 0 ? filterGroupId : ''}
+            onChange={(e) => handleGroupFilterChange(Number(e.target.value))}
+            disabled={disabled || saveBusy || savedGroups.length === 0}
           >
-            {groupDraft.map((g) => (
+            <option value="">Select a group…</option>
+            {savedGroups.map((g) => (
               <option key={g.id} value={g.id}>
-                {g.name}
+                {g.name} ({g.mode === 'competition' ? 'Competition' : 'Poll'})
               </option>
             ))}
           </select>
 
-          <QuestionsToolbar
-            addQuestion={addQuestion}
-            disabled={disabled}
-            saveBusy={saveBusy}
-            groupDraft={groupDraft}
-          />
+          {!filterGroupId || filterGroupId < 1 ? (
+            <p className="live-muted live-admin-empty">Choose a saved group to view or add questions.</p>
+          ) : filteredQuestions.length === 0 ? (
+            <p className="live-muted live-admin-empty">
+              No questions in <strong>{filterGroup?.name}</strong> yet.
+            </p>
+          ) : (
+            <ul className="live-question-list">
+              {filteredQuestions.map((q) => (
+                <li key={q.question_number} className="live-question-card">
+                  <div className="live-question-card-main">
+                    <span className="live-question-card-id">Q{q.question_number}</span>
+                    <p className="live-question-card-title">{q.title || '(Untitled)'}</p>
+                    <ul className="live-question-card-opts">
+                      {[q.option_1_text, q.option_2_text, q.option_3_text]
+                        .filter(Boolean)
+                        .map((text, idx) => (
+                          <li key={idx}>
+                            {idx + 1}. {text}
+                          </li>
+                        ))}
+                    </ul>
+                  </div>
+                  <div className="live-group-card-actions">
+                    <button
+                      type="button"
+                      className="btn ghost"
+                      onClick={() => openEditQuestion(q)}
+                      disabled={disabled || saveBusy}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      className="btn ghost live-btn-danger-outline"
+                      onClick={() => deleteQuestion(q.question_number)}
+                      disabled={disabled || saveBusy}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </>
       )}
 
       {view === 'reset' && (
         <>
           <header className="live-panel-head">
-            <h3 className="live-panel-head-title">Reset live session data</h3>
+            <h3 className="live-panel-head-title">Reset answers for a group</h3>
             <p className="live-panel-head-desc">
-              This is a <strong>whole-session</strong> reset — not limited to one question group.
+              Clears parent answers for every question in the selected group. Families stay joined.
             </p>
           </header>
 
-          <div className="live-reset-scope-card">
-            <h4 className="live-reset-scope-title">What gets cleared</h4>
-            <ul className="live-reset-scope-list">
-              <li>All parent answers (every group)</li>
-              <li>Competition points and leaderboard</li>
-              <li>Host ✓ sent markers and Live buttons</li>
-              <li>Current round / wait state on parent phones</li>
-            </ul>
-            <h4 className="live-reset-scope-title">What stays</h4>
-            <ul className="live-reset-scope-list">
-              <li>Joined families (participant list)</li>
-              <li>Saved groups &amp; questions in setup</li>
-            </ul>
-            <p className="live-reset-scope-note">
-              Your current hosting group is{' '}
-              <strong>{activeGroupName}</strong> — it is <em>not</em> cleared separately; the reset
-              applies to the entire session above.
-            </p>
-          </div>
+          <label className="live-config-filter-label" htmlFor="live-reset-group">
+            Select group to reset <span className="live-required">*</span>
+          </label>
+          <select
+            id="live-reset-group"
+            className="live-config-group-select"
+            value={resetGroupId && resetGroupId > 0 ? resetGroupId : ''}
+            onChange={(e) => setResetGroupId(Number(e.target.value))}
+            disabled={disabled || clearBusy}
+          >
+            <option value="">Choose a group…</option>
+            {savedGroups.map((g) => (
+              <option key={g.id} value={g.id}>
+                {g.name} · {questionCountByGroup.get(g.id) || 0} questions
+              </option>
+            ))}
+          </select>
+
+          {resetGroup && (
+            <div className="live-reset-scope-card">
+              <p className="live-reset-scope-note">
+                Resets votes for <strong>{resetGroup.name}</strong> only ({resetGroup.mode}).
+                Other groups keep their answers. If a live question from this group is on screen,
+                parents return to wait. Competition points on the leaderboard are not reduced
+                automatically.
+              </p>
+            </div>
+          )}
 
           {!clearConfirmOpen ? (
             <button
               type="button"
-              className="btn ghost live-config-clear live-config-clear--danger"
-              onClick={() => setClearConfirmOpen(true)}
-              disabled={disabled || clearBusy}
+              className="btn primary live-btn-danger"
+              onClick={() => {
+                if (!resetGroupId || resetGroupId < 1) {
+                  setSaveError('Select a group before resetting.')
+                  return
+                }
+                setClearConfirmOpen(true)
+              }}
+              disabled={disabled || clearBusy || !resetGroupId}
             >
-              Reset session answers &amp; scores…
+              Reset this group&apos;s answers…
             </button>
           ) : (
-            <div
-              id="live-config-clear-confirm"
-              className="live-config-clear-confirm"
-              role="alertdialog"
-              aria-labelledby="live-config-clear-title"
-            >
-              <p id="live-config-clear-title" className="live-config-clear-title">
-                Reset entire live session?
-              </p>
+            <div className="live-config-clear-confirm" role="alertdialog">
+              <p className="live-config-clear-title">Reset “{resetGroup?.name}”?</p>
               <p className="live-muted live-config-clear-desc">
-                Clears data for <strong>all {groupDraft.length} group(s)</strong>, including{' '}
-                {activeGroupName}. This cannot be undone.
+                Parent answers for all questions in this group will be deleted.
               </p>
               <div className="live-config-clear-actions">
-                <button
-                  type="button"
-                  className="btn ghost"
-                  onClick={() => setClearConfirmOpen(false)}
-                  disabled={clearBusy}
-                >
+                <button type="button" className="btn ghost" onClick={() => setClearConfirmOpen(false)} disabled={clearBusy}>
                   Cancel
                 </button>
-                <button
-                  type="button"
-                  className="btn primary live-btn-danger"
-                  onClick={confirmClearAnswers}
-                  disabled={disabled || clearBusy}
-                >
-                  {clearBusy ? 'Resetting…' : 'Yes, reset whole session'}
+                <button type="button" className="btn primary live-btn-danger" onClick={confirmClearGroup} disabled={clearBusy}>
+                  {clearBusy ? 'Resetting…' : 'Yes, reset this group'}
                 </button>
               </div>
             </div>
@@ -371,121 +574,137 @@ export default function LiveQuizConfig({
         </>
       )}
 
-      {(view === 'questions' || showSaveFooter) && (
-        <form className="live-config-form" onSubmit={handleSave}>
-          {view === 'questions' &&
-            filteredQuestions.map((q) => {
-          const mode = groupModeById.get(q.group_id)
-          return (
-            <fieldset key={q.question_number} className="live-config-q">
-              <legend className="live-config-legend">
-                Q{q.question_number}
-                {mode === 'competition' ? ' · Competition' : ' · Poll'}
-              </legend>
-              <label htmlFor={`q${q.question_number}-group`}>Group</label>
-              <select
-                id={`q${q.question_number}-group`}
-                value={q.group_id}
-                onChange={(e) =>
-                  updateQuestion(q.question_number, 'group_id', Number(e.target.value))
-                }
-                disabled={disabled || saveBusy}
-              >
-                {groupDraft.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
-              <label htmlFor={`q${q.question_number}-title`}>Question text</label>
-              <input
-                id={`q${q.question_number}-title`}
-                type="text"
-                value={q.title}
-                onChange={(e) => updateQuestion(q.question_number, 'title', e.target.value)}
-                disabled={disabled || saveBusy}
-              />
-              <label htmlFor={`q${q.question_number}-o1`}>Answer 1</label>
-              <input
-                id={`q${q.question_number}-o1`}
-                type="text"
-                value={q.option_1_text}
-                onChange={(e) => updateQuestion(q.question_number, 'option_1_text', e.target.value)}
-                disabled={disabled || saveBusy}
-              />
-              <label htmlFor={`q${q.question_number}-o2`}>Answer 2 (optional)</label>
-              <input
-                id={`q${q.question_number}-o2`}
-                type="text"
-                value={q.option_2_text}
-                onChange={(e) => updateQuestion(q.question_number, 'option_2_text', e.target.value)}
-                disabled={disabled || saveBusy}
-              />
-              <label htmlFor={`q${q.question_number}-o3`}>Answer 3 (optional)</label>
-              <input
-                id={`q${q.question_number}-o3`}
-                type="text"
-                value={q.option_3_text}
-                onChange={(e) => updateQuestion(q.question_number, 'option_3_text', e.target.value)}
-                disabled={disabled || saveBusy}
-              />
-              {mode === 'competition' && (
-                <>
-                  <label htmlFor={`q${q.question_number}-correct`}>Correct answer</label>
-                  <select
-                    id={`q${q.question_number}-correct`}
-                    value={q.correct_option}
-                    onChange={(e) =>
-                      updateQuestion(q.question_number, 'correct_option', e.target.value)
-                    }
-                    disabled={disabled || saveBusy}
-                  >
-                    <option value="">Select…</option>
-                    <option value="1">1 — {q.option_1_text || 'Answer 1'}</option>
-                    {(q.option_2_text || q.option_3_text) && (
-                      <option value="2">2 — {q.option_2_text || 'Answer 2'}</option>
-                    )}
-                    {q.option_3_text && (
-                      <option value="3">3 — {q.option_3_text}</option>
-                    )}
-                  </select>
-                </>
-              )}
-            </fieldset>
-          )
-            })}
-
-          {saveError && (
-            <p className="login-error" role="alert">
-              {saveError}
-            </p>
-          )}
-
-          {showSaveFooter && (
-            <div className="live-config-save-bar">
-              <button type="submit" className="btn primary" disabled={disabled || saveBusy}>
-                {saveBusy ? 'Saving…' : 'Save changes'}
-              </button>
-            </div>
-          )}
-        </form>
-      )}
-    </section>
-  )
-}
-
-function QuestionsToolbar({ addQuestion, disabled, saveBusy, groupDraft }) {
-  return (
-    <div className="live-config-questions-toolbar">
-      <span className="live-config-questions-title">Questions in this group</span>
-      <button
-        type="button"
-        className="btn ghost"
-        onClick={addQuestion}
-        disabled={disabled || saveBusy || groupDraft.length === 0}
+      <LiveSlideDrawer
+        open={groupDrawer.open}
+        title={groupDrawer.mode === 'add' ? 'Add question group' : 'Edit question group'}
+        onClose={() => setGroupDrawer({ open: false, mode: 'add', draft: null })}
+        footer={groupDrawerFooter}
       >
-        + Add question
-      </button>
-    </div>
+        {groupDrawer.draft && (
+          <div className="live-drawer-form">
+            <label htmlFor="drawer-group-name">Group name</label>
+            <input
+              id="drawer-group-name"
+              type="text"
+              value={groupDrawer.draft.name}
+              onChange={(e) =>
+                setGroupDrawer((prev) => ({
+                  ...prev,
+                  draft: { ...prev.draft, name: e.target.value },
+                }))
+              }
+              disabled={disabled || saveBusy}
+            />
+            <label htmlFor="drawer-group-mode">Type</label>
+            <select
+              id="drawer-group-mode"
+              value={groupDrawer.draft.mode}
+              onChange={(e) =>
+                setGroupDrawer((prev) => ({
+                  ...prev,
+                  draft: { ...prev.draft, mode: e.target.value },
+                }))
+              }
+              disabled={disabled || saveBusy}
+            >
+              <option value="poll">Poll — collect opinions</option>
+              <option value="competition">Competition — correct answer &amp; speed</option>
+            </select>
+          </div>
+        )}
+      </LiveSlideDrawer>
+
+      <LiveSlideDrawer
+        open={questionDrawer.open}
+        title={questionDrawer.mode === 'add' ? 'Add question' : `Edit Q${questionDrawer.draft?.question_number}`}
+        onClose={() => setQuestionDrawer({ open: false, mode: 'add', draft: null })}
+        footer={questionDrawerFooter}
+      >
+        {questionDrawer.draft && filterGroup && (
+          <div className="live-drawer-form">
+            <p className="live-drawer-context">
+              Group: <strong>{filterGroup.name}</strong> ({filterGroup.mode})
+            </p>
+            <label htmlFor="drawer-q-title">Question</label>
+            <input
+              id="drawer-q-title"
+              type="text"
+              value={questionDrawer.draft.title}
+              onChange={(e) =>
+                setQuestionDrawer((prev) => ({
+                  ...prev,
+                  draft: { ...prev.draft, title: e.target.value },
+                }))
+              }
+              disabled={disabled || saveBusy}
+            />
+            <label htmlFor="drawer-q-o1">Answer 1</label>
+            <input
+              id="drawer-q-o1"
+              type="text"
+              value={questionDrawer.draft.option_1_text}
+              onChange={(e) =>
+                setQuestionDrawer((prev) => ({
+                  ...prev,
+                  draft: { ...prev.draft, option_1_text: e.target.value },
+                }))
+              }
+              disabled={disabled || saveBusy}
+            />
+            <label htmlFor="drawer-q-o2">Answer 2 (optional)</label>
+            <input
+              id="drawer-q-o2"
+              type="text"
+              value={questionDrawer.draft.option_2_text}
+              onChange={(e) =>
+                setQuestionDrawer((prev) => ({
+                  ...prev,
+                  draft: { ...prev.draft, option_2_text: e.target.value },
+                }))
+              }
+              disabled={disabled || saveBusy}
+            />
+            <label htmlFor="drawer-q-o3">Answer 3 (optional)</label>
+            <input
+              id="drawer-q-o3"
+              type="text"
+              value={questionDrawer.draft.option_3_text}
+              onChange={(e) =>
+                setQuestionDrawer((prev) => ({
+                  ...prev,
+                  draft: { ...prev.draft, option_3_text: e.target.value },
+                }))
+              }
+              disabled={disabled || saveBusy}
+            />
+            {filterGroup.mode === 'competition' && (
+              <>
+                <label htmlFor="drawer-q-correct">Correct answer</label>
+                <select
+                  id="drawer-q-correct"
+                  value={questionDrawer.draft.correct_option}
+                  onChange={(e) =>
+                    setQuestionDrawer((prev) => ({
+                      ...prev,
+                      draft: { ...prev.draft, correct_option: e.target.value },
+                    }))
+                  }
+                  disabled={disabled || saveBusy}
+                >
+                  <option value="">Select…</option>
+                  <option value="1">1 — {questionDrawer.draft.option_1_text || 'Answer 1'}</option>
+                  {(questionDrawer.draft.option_2_text || questionDrawer.draft.option_3_text) && (
+                    <option value="2">2 — {questionDrawer.draft.option_2_text || 'Answer 2'}</option>
+                  )}
+                  {questionDrawer.draft.option_3_text && (
+                    <option value="3">3 — {questionDrawer.draft.option_3_text}</option>
+                  )}
+                </select>
+              </>
+            )}
+          </div>
+        )}
+      </LiveSlideDrawer>
+    </section>
   )
 }

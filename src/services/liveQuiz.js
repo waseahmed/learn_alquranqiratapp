@@ -173,6 +173,33 @@ export async function adminClearLiveQuizAnswers(pin) {
   return { data: null, error }
 }
 
+export async function adminClearGroupAnswers(pin, groupId) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { error } = await supabase.rpc('live_quiz_admin_clear_group_answers', {
+    p_pin: pin,
+    p_group_id: groupId,
+  })
+  return { data: null, error }
+}
+
+export async function adminDeleteLiveQuizGroup(pin, groupId) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { error } = await supabase.rpc('live_quiz_admin_delete_group', {
+    p_pin: pin,
+    p_group_id: groupId,
+  })
+  return { data: null, error }
+}
+
+export async function adminDeleteLiveQuizQuestion(pin, questionNumber) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { error } = await supabase.rpc('live_quiz_admin_delete_question', {
+    p_pin: pin,
+    p_question_number: questionNumber,
+  })
+  return { data: null, error }
+}
+
 function liveQuizChannelKey(table) {
   return `live-quiz-${table}:${crypto.randomUUID()}`
 }
