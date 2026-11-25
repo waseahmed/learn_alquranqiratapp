@@ -97,10 +97,40 @@ export async function adminLiveQuizDetailedAnalysis(pin) {
   return { data, error }
 }
 
+function parseQuestionsPayload(data) {
+  if (data && typeof data === 'object' && Array.isArray(data.questions)) {
+    return {
+      groups: Array.isArray(data.groups) ? data.groups : [],
+      questions: data.questions,
+    }
+  }
+  if (Array.isArray(data)) {
+    return {
+      groups: [{ id: 1, name: 'General session', mode: 'poll', sort_order: 0 }],
+      questions: data,
+    }
+  }
+  return {
+    groups: [{ id: 1, name: 'General session', mode: 'poll', sort_order: 0 }],
+    questions: DEFAULT_LIVE_QUESTIONS,
+  }
+}
+
 export async function fetchLiveQuizQuestions() {
-  if (!supabase) return { data: DEFAULT_LIVE_QUESTIONS, error: null }
+  if (!supabase) {
+    return {
+      data: parseQuestionsPayload(DEFAULT_LIVE_QUESTIONS),
+      error: null,
+    }
+  }
   const { data, error } = await supabase.rpc('live_quiz_get_questions')
-  return { data, error }
+  return { data: parseQuestionsPayload(data), error }
+}
+
+export async function verifyAdminPin(pin) {
+  if (!supabase) return { data: false, error: new Error('Supabase is not configured') }
+  const { data, error } = await supabase.rpc('live_quiz_verify_pin', { p_pin: pin })
+  return { data: Boolean(data), error }
 }
 
 export async function adminSaveLiveQuizQuestions(pin, questions) {
@@ -109,6 +139,31 @@ export async function adminSaveLiveQuizQuestions(pin, questions) {
     p_pin: pin,
     p_questions: questions,
   })
+  return { data: parseQuestionsPayload(data), error }
+}
+
+export async function adminSaveLiveQuizSessionConfig(pin, groups, questions) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { data, error } = await supabase.rpc('live_quiz_admin_save_session_config', {
+    p_pin: pin,
+    p_groups: groups,
+    p_questions: questions,
+  })
+  return { data: parseQuestionsPayload(data), error }
+}
+
+export async function adminSetActiveGroup(pin, groupId) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { data, error } = await supabase.rpc('live_quiz_admin_set_active_group', {
+    p_pin: pin,
+    p_group_id: groupId,
+  })
+  return { data, error }
+}
+
+export async function fetchLivePresentSnapshot() {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { data, error } = await supabase.rpc('live_quiz_present_snapshot')
   return { data, error }
 }
 

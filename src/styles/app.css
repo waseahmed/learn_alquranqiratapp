@@ -3087,3 +3087,239 @@ a.btn.primary {
   background: var(--soft);
   font-weight: 600;
 }
+
+.live-config-groups {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin: 0 0 14px;
+  text-align: left;
+}
+
+.live-config-group-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.live-config-group-row input {
+  flex: 1 1 160px;
+}
+
+.live-config-group-row select {
+  flex: 0 0 auto;
+  min-width: 11rem;
+}
+
+.live-config-add-group {
+  width: 100%;
+}
+
+.live-config-filter-label {
+  display: block;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.live-config-group-select {
+  width: 100%;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  font-size: 15px;
+}
+
+.live-config-questions-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.live-config-questions-title {
+  margin: 0;
+  font-size: 15px;
+}
+
+.live-host-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.live-host-group-label {
+  font-size: 13px;
+  font-weight: 600;
+  width: 100%;
+}
+
+.live-host-toolbar .live-config-group-select {
+  flex: 1 1 200px;
+  margin-bottom: 0;
+}
+
+.live-present-open {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
+.live-present-hint {
+  margin: 0 0 14px;
+  font-size: 13px;
+}
+
+.live-present {
+  min-height: 100vh;
+  margin: 0;
+  padding: 28px 32px 40px;
+  background: linear-gradient(165deg, #0f2a1f 0%, #1a4534 45%, #0d1f18 100%);
+  color: #f4f7ef;
+  font-family: system-ui, sans-serif;
+  box-sizing: border-box;
+}
+
+.live-present-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.live-present-logo {
+  height: 48px;
+  margin-bottom: 12px;
+}
+
+.live-present-title {
+  margin: 0 0 6px;
+  font-size: clamp(26px, 4vw, 38px);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.live-present-sub {
+  margin: 0;
+  opacity: 0.75;
+  font-size: 14px;
+}
+
+.live-present-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+@media (max-width: 800px) {
+  .live-present-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.live-present-podium,
+.live-present-board {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 16px;
+  padding: 20px 22px;
+  backdrop-filter: blur(6px);
+}
+
+.live-present-section-title {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #d4b86a;
+}
+
+.live-present-empty {
+  margin: 0;
+  opacity: 0.7;
+  font-size: 15px;
+}
+
+.live-present-podium-list,
+.live-present-board-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.live-present-podium-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.live-present-podium-item--1 {
+  border-color: rgba(212, 184, 106, 0.55);
+  background: rgba(212, 184, 106, 0.12);
+}
+
+.live-present-podium-item--2 {
+  border-color: rgba(192, 198, 210, 0.45);
+}
+
+.live-present-podium-item--3 {
+  border-color: rgba(199, 138, 86, 0.45);
+}
+
+.live-present-medal {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.live-present-pts {
+  font-weight: 800;
+  color: #9fd4a8;
+  font-size: 15px;
+}
+
+.live-present-board-row {
+  display: grid;
+  grid-template-columns: 2rem 1fr auto;
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.live-present-rank {
+  font-weight: 800;
+  color: #d4b86a;
+}
+
+.live-present-name {
+  font-weight: 600;
+}
+
+.live-present-role {
+  font-weight: 400;
+  opacity: 0.65;
+  font-size: 13px;
+}
+
+.live-present-score {
+  font-weight: 800;
+  font-size: 18px;
+}
+
+.live-present-error {
+  text-align: center;
+  color: #ffb4a8;
+}

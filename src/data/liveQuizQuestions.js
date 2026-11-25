@@ -56,6 +56,10 @@ export function normalizeQuestion(row) {
     title: row.title || `Question ${row.question_number}`,
     options,
     optionCount,
+    groupId: row.group_id ?? null,
+    groupMode: row.group_mode === 'competition' ? 'competition' : 'poll',
+    isCompetition: row.group_mode === 'competition',
+    correctOption: row.correct_option ?? null,
     /** Shown on parent + admin send buttons during live session */
     sendLabels: Array.from({ length: optionCount }, (_, i) => String(i + 1)),
   }

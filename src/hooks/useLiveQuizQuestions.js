@@ -4,8 +4,18 @@ import { fetchLiveQuizQuestions, subscribeLiveQuizQuestions } from '../services/
 
 export function useLiveQuizQuestions() {
   const [rows, setRows] = useState(DEFAULT_LIVE_QUESTIONS)
+  const [groups, setGroups] = useState([
+    { id: 1, name: 'General session', mode: 'poll', sort_order: 0 },
+  ])
   const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
+
+  const applyPayload = useCallback((data) => {
+    if (!data) return
+    if (data.questions?.length) setRows(data.questions)
+    if (data.groups?.length) setGroups(data.groups)
+    setLoadError('')
+  }, [])
 
   const refresh = useCallback(async () => {
     const { data, error } = await fetchLiveQuizQuestions()
@@ -14,11 +24,8 @@ export function useLiveQuizQuestions() {
       setLoadError(error.message)
       return
     }
-    if (Array.isArray(data) && data.length > 0) {
-      setRows(data)
-      setLoadError('')
-    }
-  }, [])
+    applyPayload(data)
+  }, [applyPayload])
 
   useEffect(() => {
     let active = true
@@ -26,7 +33,7 @@ export function useLiveQuizQuestions() {
       if (!active) return
       setLoading(false)
       if (error) setLoadError(error.message)
-      else if (Array.isArray(data) && data.length > 0) setRows(data)
+      else applyPayload(data)
     })
     const unsub = subscribeLiveQuizQuestions(() => {
       if (active) refresh()
@@ -44,5 +51,5 @@ export function useLiveQuizQuestions() {
 
   const allQuestions = useMemo(() => rows.map(normalizeQuestion), [rows])
 
-  return { rows, questions, allQuestions, loading, loadError, refresh }
+  return { rows, groups, questions, allQuestions, loading, loadError, refresh }
 }

@@ -11,13 +11,16 @@ import {
   adminListParticipants,
   adminLiveQuizStats,
   adminRemoveParticipant,
+  adminSetActiveGroup,
   adminShowOption,
   adminShowWait,
   subscribeLiveQuizVotes,
+  verifyAdminPin,
 } from '../../services/liveQuiz'
 import { supabaseConfigured } from '../../services/supabase'
 
 const PIN_STORAGE_KEY = 'aqqa_live_admin_pin'
+const ACTIVE_GROUP_KEY = 'aqqa_live_active_group_id'
 const SENT_QUESTIONS_KEY = 'aqqa_live_sent_questions'
 const SUPPRESS_SEND_TICKS_KEY = 'aqqa_live_suppress_send_ticks'
 
@@ -127,9 +130,19 @@ function LiveStatsOverview({ stats, question }) {
   )
 }
 
+function readActiveGroupId() {
+  try {
+    const raw = sessionStorage.getItem(ACTIVE_GROUP_KEY)
+    return raw ? Number(raw) : null
+  } catch {
+    return null
+  }
+}
+
 export default function LiveAdminPage() {
   const [pin, setPin] = useState(readStoredPin)
-  const [pinUnlocked, setPinUnlocked] = useState(Boolean(readStoredPin()))
+  const [pinUnlocked, setPinUnlocked] = useState(false)
+  const [pinChecking, setPinChecking] = useState(true)
   const [pinInput, setPinInput] = useState('')
   const [actionError, setActionError] = useState('')
   const [busy, setBusy] = useState(false)
@@ -144,9 +157,51 @@ export default function LiveAdminPage() {
   const [sendRowsRevision, setSendRowsRevision] = useState(0)
   const lastFreshRoundRef = useRef(null)
 
+  const [activeGroupId, setActiveGroupId] = useState(readActiveGroupId)
+
   const display = useLiveQuizDisplay()
-  const { rows: questionRows, questions: sendableQuestions, refresh: refreshQuestions } =
-    useLiveQuizQuestions()
+  const {
+    rows: questionRows,
+    groups,
+    questions: allSendableQuestions,
+    refresh: refreshQuestions,
+  } = useLiveQuizQuestions()
+
+  const sendableQuestions = useMemo(() => {
+    if (activeGroupId == null) return allSendableQuestions
+    return allSendableQuestions.filter((q) => Number(q.groupId) === Number(activeGroupId))
+  }, [allSendableQuestions, activeGroupId])
+
+  useEffect(() => {
+    if (groups.length && activeGroupId == null) {
+      setActiveGroupId(groups[0].id)
+    }
+  }, [groups, activeGroupId])
+
+  useEffect(() => {
+    let active = true
+    async function checkStoredPin() {
+      const stored = readStoredPin()
+      if (!stored) {
+        if (active) setPinChecking(false)
+        return
+      }
+      const { data, error } = await verifyAdminPin(stored)
+      if (!active) return
+      setPinChecking(false)
+      if (!error && data) {
+        setPin(stored)
+        setPinUnlocked(true)
+      } else {
+        sessionStorage.removeItem(PIN_STORAGE_KEY)
+        setPin('')
+      }
+    }
+    checkStoredPin()
+    return () => {
+      active = false
+    }
+  }, [])
 
   const activeQuestion = useMemo(
     () => getQuestionFromList(questionRows, display.questionNumber),
@@ -223,11 +278,46 @@ export default function LiveAdminPage() {
     refreshStats()
   }
 
-  function handleUnlock(e) {
+  async function handleUnlock(e) {
     e.preventDefault()
-    setPin(pinInput.trim())
-    setPinUnlocked(true)
     setActionError('')
+    const candidate = pinInput.trim()
+    if (!candidate) {
+      setActionError('Enter the host PIN.')
+      return
+    }
+    setPinChecking(true)
+    const { data, error } = await verifyAdminPin(candidate)
+    setPinChecking(false)
+    if (error || !data) {
+      setActionError('Invalid host PIN. Access denied.')
+      setPinUnlocked(false)
+      sessionStorage.removeItem(PIN_STORAGE_KEY)
+      return
+    }
+    setPin(candidate)
+    setPinUnlocked(true)
+    sessionStorage.setItem(PIN_STORAGE_KEY, candidate)
+  }
+
+  async function handleActiveGroupChange(groupId) {
+    setActiveGroupId(groupId)
+    if (groupId != null) {
+      try {
+        sessionStorage.setItem(ACTIVE_GROUP_KEY, String(groupId))
+      } catch {
+        /* ignore */
+      }
+      if (pinUnlocked && pin && groupId > 0) {
+        await adminSetActiveGroup(pin, groupId)
+      }
+    }
+  }
+
+  function openPresentationWindow() {
+    const base = import.meta.env.BASE_URL || '/'
+    const url = `${window.location.origin}${base}#/live/admin/present`
+    window.open(url, 'aqqa-live-present', 'noopener,noreferrer,width=1280,height=800')
   }
 
   function markQuestionSent(questionNumber) {
@@ -345,7 +435,13 @@ export default function LiveAdminPage() {
           </p>
         )}
 
-        {!pinUnlocked ? (
+        {pinChecking && (
+          <p className="live-muted" role="status">
+            Checking host PIN…
+          </p>
+        )}
+
+        {!pinChecking && !pinUnlocked ? (
           <form className="login-form" onSubmit={handleUnlock}>
             <label htmlFor="admin-pin">Host PIN</label>
             <input
@@ -359,14 +455,19 @@ export default function LiveAdminPage() {
               disabled={!supabaseConfigured}
             />
             <p className="live-muted live-pin-hint">
-              Default after setup: <code>aqqa-live</code> — change in Supabase (
-              <code>live_quiz_secrets</code>).
+              Host PIN is set in Supabase (<code>live_quiz_secrets</code>). Wrong PIN will not open
+              the dashboard.
             </p>
-            <button type="submit" className="btn primary" disabled={!supabaseConfigured}>
+            {actionError && (
+              <p className="login-error" role="alert">
+                {actionError}
+              </p>
+            )}
+            <button type="submit" className="btn primary" disabled={!supabaseConfigured || pinChecking}>
               Open host controls
             </button>
           </form>
-        ) : (
+        ) : !pinChecking ? (
           <>
             <div className="live-admin-tabs" role="tablist" aria-label="Admin sections">
               {TABS.map((t) => (
@@ -392,6 +493,36 @@ export default function LiveAdminPage() {
             {tab === 'host' && (
               <div className="live-admin-tab-panel" role="tabpanel">
                 <LiveStatsOverview stats={stats} question={statsQuestion} />
+
+                <div className="live-host-toolbar">
+                  <label className="live-host-group-label" htmlFor="live-host-active-group">
+                    Question group
+                  </label>
+                  <select
+                    id="live-host-active-group"
+                    className="live-config-group-select"
+                    value={activeGroupId ?? ''}
+                    onChange={(e) => handleActiveGroupChange(Number(e.target.value))}
+                    disabled={busy || groups.length === 0}
+                  >
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name} ({g.mode === 'competition' ? 'Competition' : 'Poll'})
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    type="button"
+                    className="btn ghost live-present-open"
+                    onClick={openPresentationWindow}
+                  >
+                    Open presentation screen
+                  </button>
+                </div>
+                <p className="live-muted live-present-hint">
+                  Open the presentation window and drag it to a projector to show leaderboards and
+                  1st / 2nd / 3rd for competition questions (after you tap “wait for next one”).
+                </p>
 
                 <div className="live-admin-preview" aria-live="polite">
                   <span className="live-admin-preview-label">Audience sees:</span>
@@ -486,7 +617,10 @@ export default function LiveAdminPage() {
               <div className="live-admin-tab-panel" role="tabpanel">
                 <LiveQuizConfig
                   pin={pin}
+                  groups={groups}
                   rows={questionRows}
+                  activeGroupId={activeGroupId}
+                  onActiveGroupChange={handleActiveGroupChange}
                   disabled={busy || !supabaseConfigured}
                   onSaved={() => {
                     refreshQuestions()
@@ -507,7 +641,7 @@ export default function LiveAdminPage() {
               Lock host screen
             </button>
           </>
-        )}
+        ) : null}
       </div>
     </div>
   )

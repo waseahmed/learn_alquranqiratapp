@@ -30,7 +30,7 @@ create table if not exists public.live_quiz_secrets (
 
 -- Change this PIN before going live (must match what you give the host).
 insert into public.live_quiz_secrets (id, admin_pin)
-values (1, 'aqqa-live')
+values (1, 'L0gin@123')
 on conflict (id) do nothing;
 
 create table if not exists public.live_quiz_participants (
