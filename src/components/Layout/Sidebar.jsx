@@ -267,13 +267,6 @@ export default function Sidebar({
             Practice
           </NavLink>
           <NavLink
-            to="/compare-audio"
-            className={({ isActive }) => `item nav-item ${isActive ? 'active' : ''}`}
-            onClick={onCloseMobile}
-          >
-            Compare audio
-          </NavLink>
-          <NavLink
             to="/my-attempts"
             className={({ isActive }) => `item nav-item ${isActive ? 'active' : ''}`}
             onClick={onCloseMobile}

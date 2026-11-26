@@ -77,8 +77,8 @@ export default function MyAttemptsPage() {
         <div className="guide-card">
           <div className="rule">No attempts yet</div>
           <p className="guide-intro">
-            Run a comparison on the <Link to="/compare-audio">Compare Audio</Link> page and your score will
-            show up here.
+            Record and compare in <Link to="/practice">shadow practice</Link> and your scores will show up here
+            when saved.
           </p>
         </div>
       ) : (

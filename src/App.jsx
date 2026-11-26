@@ -8,7 +8,6 @@ import ShadowPracticePage from './pages/ShadowPracticePage.jsx'
 import HowToImitatePage from './pages/HowToImitatePage.jsx'
 import CommonMistakesPage from './pages/CommonMistakesPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
-import CompareAudioPage from './pages/CompareAudioPage.jsx'
 import MyAttemptsPage from './pages/MyAttemptsPage.jsx'
 import LiveParentPage from './pages/live/LiveParentPage.jsx'
 import LiveAdminPage from './pages/live/LiveAdminPage.jsx'
@@ -64,7 +63,7 @@ export default function App() {
         <Route path="profile" element={<ProfilePage />} />
         <Route path="how-to-imitate" element={<HowToImitatePage />} />
         <Route path="common-mistakes" element={<CommonMistakesPage />} />
-        <Route path="compare-audio" element={<CompareAudioPage />} />
+        <Route path="compare-audio" element={<Navigate to="/practice" replace />} />
         <Route path="my-attempts" element={<MyAttemptsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />

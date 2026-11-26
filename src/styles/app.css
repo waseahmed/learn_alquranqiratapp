@@ -1861,62 +1861,6 @@ a.btn.primary {
   align-self: start;
 }
 
-.shadow-practice-nav {
-  padding: 12px 12px 10px;
-  border-radius: 14px;
-  border: 1px solid var(--line);
-  background: #fff;
-  box-shadow: var(--shadow);
-}
-
-.shadow-practice-nav-brand {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  width: 100%;
-  margin-bottom: 10px;
-  padding: 4px 6px 10px;
-  border: 0;
-  border-bottom: 1px solid var(--line);
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  color: inherit;
-}
-
-.shadow-practice-nav-logo {
-  width: 34px;
-  height: 34px;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.shadow-practice-nav-brand-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 1.2;
-}
-
-.shadow-practice-nav-brand-text strong {
-  font-size: 14px;
-  color: var(--ink);
-}
-
-.shadow-practice-nav-links {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.shadow-practice-nav-link {
-  font-size: 13px;
-  padding: 8px 10px;
-}
-
 @media (max-width: 1100px) {
   .shadow-coach-layout--triple {
     grid-template-columns: 1fr;

@@ -24,8 +24,8 @@ const steps = [
       <>
         Qari → child → Qari → child. Ask the child to identify where their pitch,
         pause or rhythm changed. Use the{' '}
-        <Link to="/compare-audio">Compare audio</Link> page to upload both takes
-        and see waveform differences.
+        <Link to="/practice">shadow practice</Link> to record, compare, and see how
+        close your take is to the coach.
       </>
     ),
   },

@@ -4,7 +4,6 @@ import Header from '../components/Layout/Header'
 import ShadowPitchStage from '../components/Practice/ShadowPitchStage'
 import ShadowCoachRail from '../components/Practice/ShadowCoachRail'
 import ShadowSelfCoachRail from '../components/Practice/ShadowSelfCoachRail'
-import ShadowPracticeNav from '../components/Practice/ShadowPracticeNav'
 import ShadowWordLoopBar from '../components/Practice/ShadowWordLoopBar'
 import { surahs } from '../data/quranData'
 import { qaris, getQarisForSurah } from '../data/qaris'
@@ -768,7 +767,6 @@ export default function ShadowPracticePage() {
 
       <div className="shadow-coach-layout shadow-coach-layout--triple">
         <div className="shadow-practice-left">
-          <ShadowPracticeNav />
           <ShadowSelfCoachRail
           activePlay={activePlay}
           isPlaying={isPlaying}
