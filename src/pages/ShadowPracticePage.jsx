@@ -12,6 +12,7 @@ import { compareEnvelopes, decodeAudioBlob, displayEnvelope } from '../services/
 import { buildRecitationAnalysis, computeF0Contour } from '../services/recitationAnalysis'
 import {
   activeWordIndex,
+  computeWordStartFractions,
   parseAyahWords,
   sliceAudioAnalysis,
   wordTimeRange,
@@ -76,6 +77,18 @@ export default function ShadowPracticePage() {
     [allowedKeys],
   )
 
+  const wordStartFractions = useMemo(
+    () =>
+      computeWordStartFractions({
+        displayTokens,
+        envelope,
+        channelData: refAnalysis?.channelData,
+        sampleRate: refAnalysis?.sampleRate,
+        durationSec: refDuration || refAnalysis?.duration || 0,
+      }),
+    [displayTokens, envelope, refAnalysis, refDuration],
+  )
+
   const phraseScope = useMemo(() => {
     if (!words.length) return null
   const fullAyah = loopStart === 0 && loopEnd >= words.length - 1
@@ -84,36 +97,48 @@ export default function ShadowPracticePage() {
 
   const rangeHighlight = useMemo(() => {
     if (!words.length) return null
-    const frac = wordTimeRange(loopStart, loopEnd, words.length, 1)
+    const frac = wordTimeRange(loopStart, loopEnd, words.length, 1, wordStartFractions)
     if (phraseScope?.fullAyah) return null
     return { startFrac: frac.startFrac, endFrac: frac.endFrac }
-  }, [loopStart, loopEnd, words.length, phraseScope?.fullAyah])
+  }, [loopStart, loopEnd, words.length, phraseScope?.fullAyah, wordStartFractions])
 
   const comparison = useMemo(() => {
     if (!refAnalysis || !studentAnalysis) return null
     let refCmp = refAnalysis
     let studentCmp = studentAnalysis
     if (phraseScope && !phraseScope.fullAyah) {
-      const frac = wordTimeRange(loopStart, loopEnd, words.length, refAnalysis.duration)
+      const frac = wordTimeRange(
+        loopStart,
+        loopEnd,
+        words.length,
+        refAnalysis.duration,
+        wordStartFractions,
+      )
       refCmp = sliceAudioAnalysis(refAnalysis, frac.startFrac, frac.endFrac)
       studentCmp = sliceAudioAnalysis(studentAnalysis, frac.startFrac, frac.endFrac)
     }
     if (!refCmp || !studentCmp) return null
     return compareEnvelopes(refCmp, studentCmp)
-  }, [refAnalysis, studentAnalysis, phraseScope, loopStart, loopEnd, words.length])
+  }, [refAnalysis, studentAnalysis, phraseScope, loopStart, loopEnd, words.length, wordStartFractions])
 
   const recitationAnalysis = useMemo(() => {
     if (!refAnalysis?.channelData || !studentAnalysis?.channelData) return null
     let refBuf = refAnalysis
     let studentBuf = studentAnalysis
     if (phraseScope && !phraseScope.fullAyah) {
-      const frac = wordTimeRange(loopStart, loopEnd, words.length, refAnalysis.duration)
+      const frac = wordTimeRange(
+        loopStart,
+        loopEnd,
+        words.length,
+        refAnalysis.duration,
+        wordStartFractions,
+      )
       refBuf = sliceAudioAnalysis(refAnalysis, frac.startFrac, frac.endFrac)
       studentBuf = sliceAudioAnalysis(studentAnalysis, frac.startFrac, frac.endFrac)
     }
     if (!refBuf?.channelData || !studentBuf?.channelData) return null
     return buildRecitationAnalysis(refBuf, studentBuf)
-  }, [refAnalysis, studentAnalysis, phraseScope, loopStart, loopEnd, words.length])
+  }, [refAnalysis, studentAnalysis, phraseScope, loopStart, loopEnd, words.length, wordStartFractions])
 
   useEffect(() => {
     if (!words.length) return
@@ -352,7 +377,7 @@ export default function ShadowPracticePage() {
     if (!el || !words.length) return null
     const d = el.duration
     if (!Number.isFinite(d) || d <= 0) return null
-    const range = wordTimeRange(loopStart, loopEnd, words.length, d)
+    const range = wordTimeRange(loopStart, loopEnd, words.length, d, wordStartFractions)
     const active = persistent || loopEnabled
     loopWinRef.current = active ? { ...range, persistent } : null
     if (active) el.currentTime = range.start
@@ -551,8 +576,8 @@ export default function ShadowPracticePage() {
       activePlay === 'ab-you' ||
       activePlay === 'loop-you'
     if (!highlightsAudio) return -1
-    return activeWordIndex(playProgress, words.length)
-  }, [isPlaying, activePlay, playProgress, words.length])
+    return activeWordIndex(playProgress, words.length, wordStartFractions)
+  }, [isPlaying, activePlay, playProgress, words.length, wordStartFractions])
 
   const verseLabel = currentSurah
     ? `${currentSurah.name_en} · verse ${ayah}`
@@ -619,6 +644,7 @@ export default function ShadowPracticePage() {
             waveReady={waveReady}
             rangeHighlight={rangeHighlight}
             activeWordIndex={speakingWordIndex}
+            wordStartFractions={wordStartFractions}
           />
 
           {guideNote && (

@@ -73,6 +73,7 @@ export default function ShadowPitchStage({
   waveReady = false,
   rangeHighlight = null,
   activeWordIndex = -1,
+  wordStartFractions = null,
 }) {
   const canvasRef = useRef(null)
 
@@ -186,16 +187,20 @@ export default function ShadowPitchStage({
 
     if (words.length > 1 && waveReady) {
       const innerW = width - PAD_X * 2
-      const stepW = innerW / words.length
+      const starts =
+        wordStartFractions?.length === words.length + 1
+          ? wordStartFractions
+          : Array.from({ length: words.length + 1 }, (_, i) => i / words.length)
       if (activeWordIndex >= 0 && activeWordIndex < words.length) {
-        const x0 = PAD_X + stepW * activeWordIndex
+        const x0 = PAD_X + starts[activeWordIndex] * innerW
+        const x1 = PAD_X + starts[activeWordIndex + 1] * innerW
         ctx.fillStyle = 'rgba(201, 147, 52, 0.14)'
-        ctx.fillRect(x0, PAD_Y, stepW, height - PAD_Y * 2)
+        ctx.fillRect(x0, PAD_Y, Math.max(2, x1 - x0), height - PAD_Y * 2)
       }
       ctx.strokeStyle = 'rgba(30, 96, 57, 0.15)'
       ctx.setLineDash([3, 4])
       for (let i = 1; i < words.length; i += 1) {
-        const x = PAD_X + stepW * i
+        const x = PAD_X + starts[i] * innerW
         ctx.beginPath()
         ctx.moveTo(x, PAD_Y)
         ctx.lineTo(x, height - PAD_Y)
@@ -221,6 +226,7 @@ export default function ShadowPitchStage({
     waveReady,
     rangeHighlight,
     activeWordIndex,
+    wordStartFractions,
   ])
 
   return (
