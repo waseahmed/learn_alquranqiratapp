@@ -476,6 +476,15 @@ a.nav-item.active {
   grid-row: 1;
   justify-self: start;
   min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.top-bar--logo-left .header-logo-btn {
+  grid-column: unset;
+  grid-row: unset;
 }
 
 .header-logo-btn {
@@ -2377,10 +2386,30 @@ a.btn.primary {
   pointer-events: none;
 }
 
+.shadow-word-loop-active {
+  margin: 10px 0 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #d7e4ce;
+  background: #f4f9f1;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.shadow-word-loop-active strong {
+  color: var(--green);
+}
+
 .shadow-word-loop-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+
+.shadow-word-loop-clear {
+  margin-left: auto;
 }
 
 .shadow-closeness-card {

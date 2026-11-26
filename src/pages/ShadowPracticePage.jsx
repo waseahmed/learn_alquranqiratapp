@@ -749,7 +749,11 @@ export default function ShadowPracticePage() {
       <audio ref={hearRef} preload="auto" className="visually-hidden" aria-hidden />
       <audio ref={practiceAudioRef} preload="auto" className="visually-hidden" aria-hidden />
 
-      <Header title="Shadow practice" subtitle="Coaching · self-coaching · compare" />
+      <Header
+        title="Shadow practice"
+        subtitle="Coaching · self-coaching · compare"
+        logoPosition="left"
+      />
 
       <header className="shadow-practice-header">
         <button type="button" className="btn ghost shadow-practice-back" onClick={() => navigate('/practice')}>
@@ -817,6 +821,7 @@ export default function ShadowPracticePage() {
             onSelectWord={handleSelectLoopWord}
             onLoopCoach={handleLoopCoach}
             onLoopYou={handleLoopYou}
+            onClearLoop={stopPlayback}
             loopPlaying={loopPlayMode}
             isPlaying={isPlaying}
             durationSec={loopDurationHint}

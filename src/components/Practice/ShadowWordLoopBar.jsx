@@ -7,6 +7,7 @@ export default function ShadowWordLoopBar({
   onSelectWord,
   onLoopCoach,
   onLoopYou,
+  onClearLoop,
   loopPlaying,
   isPlaying,
   durationSec,
@@ -61,6 +62,14 @@ export default function ShadowWordLoopBar({
         })}
       </div>
       <p className="shadow-word-loop-meta">{rangeLabel}</p>
+      {(loopPlaying === 'coach' || loopPlaying === 'you') && (
+        <p className="shadow-word-loop-active" role="status">
+          Looping{' '}
+          <strong>{loopPlaying === 'coach' ? 'coach' : 'your take'}</strong>
+          {isPlaying ? ' · playing' : ' · paused'}
+          {loopPlaying === 'coach' ? ' — coach phrase on repeat' : ''}
+        </p>
+      )}
       <div className="shadow-word-loop-actions">
         <LoopToggleButton
           mode="coach"
@@ -78,6 +87,16 @@ export default function ShadowWordLoopBar({
           onClick={onLoopYou}
           playLabel="↻ Loop you"
         />
+        {loopPlaying && onClearLoop ? (
+          <button
+            type="button"
+            className="btn stop shadow-word-loop-clear"
+            onClick={onClearLoop}
+            aria-label="Clear phrase loop and stop playback"
+          >
+            ✕ Clear loop
+          </button>
+        ) : null}
       </div>
     </section>
   )
