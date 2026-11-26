@@ -72,6 +72,7 @@ export default function ShadowPitchStage({
   loading = false,
   waveReady = false,
   rangeHighlight = null,
+  activeWordIndex = -1,
 }) {
   const canvasRef = useRef(null)
 
@@ -186,6 +187,11 @@ export default function ShadowPitchStage({
     if (words.length > 1 && waveReady) {
       const innerW = width - PAD_X * 2
       const stepW = innerW / words.length
+      if (activeWordIndex >= 0 && activeWordIndex < words.length) {
+        const x0 = PAD_X + stepW * activeWordIndex
+        ctx.fillStyle = 'rgba(201, 147, 52, 0.14)'
+        ctx.fillRect(x0, PAD_Y, stepW, height - PAD_Y * 2)
+      }
       ctx.strokeStyle = 'rgba(30, 96, 57, 0.15)'
       ctx.setLineDash([3, 4])
       for (let i = 1; i < words.length; i += 1) {
@@ -214,6 +220,7 @@ export default function ShadowPitchStage({
     loading,
     waveReady,
     rangeHighlight,
+    activeWordIndex,
   ])
 
   return (

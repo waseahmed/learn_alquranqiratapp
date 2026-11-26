@@ -10,6 +10,7 @@ export default function ShadowWordLoopBar({
   loopPlaying,
   durationSec,
   canLoopYou = false,
+  activeWordIndex = -1,
 }) {
   const rangeLabel =
     words.length && loopStart <= loopEnd
@@ -41,15 +42,17 @@ export default function ShadowWordLoopBar({
         {words.map((w, i) => {
           const inRange = i >= loopStart && i <= loopEnd
           const isEdge = i === loopStart || i === loopEnd
+          const speaking = i === activeWordIndex
           return (
             <button
               key={`${w}-${i}`}
               type="button"
               className={`shadow-word-loop-chip ${inRange ? 'shadow-word-loop-chip--in' : ''} ${
                 isEdge ? 'shadow-word-loop-chip--edge' : ''
-              }`}
+              } ${speaking ? 'shadow-word-loop-chip--speaking' : ''}`}
               onClick={() => onSelectWord(i)}
               aria-pressed={inRange}
+              aria-current={speaking ? 'true' : undefined}
             >
               {w}
             </button>

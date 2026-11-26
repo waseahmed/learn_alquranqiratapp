@@ -11,9 +11,11 @@ import { analyzeRecitationFromUrl } from '../services/recitationAudioLoader'
 import { compareEnvelopes, decodeAudioBlob, displayEnvelope } from '../services/audioCompare'
 import { buildRecitationAnalysis, computeF0Contour } from '../services/recitationAnalysis'
 import {
+  activeWordIndex,
   sliceAudioAnalysis,
   wordTimeRange,
 } from '../services/shadowPracticeUtils'
+import ShadowAyahWords from '../components/Practice/ShadowAyahWords'
 import { useRecorder } from '../hooks/useRecorder'
 
 function wordsFromAyah(arabic) {
@@ -542,6 +544,20 @@ export default function ShadowPracticePage() {
 
   const loopDurationHint = refDuration || refAnalysis?.duration || 0
 
+  const speakingWordIndex = useMemo(() => {
+    if (!isPlaying || !activePlay || !words.length) return -1
+    const highlightsAudio =
+      activePlay.startsWith('ref-') ||
+      activePlay.startsWith('ab-ref') ||
+      activePlay === 'both' ||
+      activePlay === 'loop-coach' ||
+      activePlay === 'you' ||
+      activePlay === 'ab-you' ||
+      activePlay === 'loop-you'
+    if (!highlightsAudio) return -1
+    return activeWordIndex(playProgress, words.length)
+  }, [isPlaying, activePlay, playProgress, words.length])
+
   const verseLabel = currentSurah
     ? `${currentSurah.name_en} · verse ${ayah}`
     : `Surah ${surah} · verse ${ayah}`
@@ -574,9 +590,11 @@ export default function ShadowPracticePage() {
               <div className="reader-head-title">{currentSurah?.name_ar}</div>
               <div className="ayah-meta">{verseLabel}</div>
             </div>
-            <div className="arabic shadow-practice-arabic-block" dir="rtl" lang="ar">
-              {arabic}
-            </div>
+            <ShadowAyahWords
+              words={words}
+              activeIndex={speakingWordIndex}
+              className="shadow-practice-arabic-block"
+            />
           </section>
 
           <ShadowWordLoopBar
@@ -591,6 +609,7 @@ export default function ShadowPracticePage() {
             loopPlaying={loopPlayMode}
             durationSec={loopDurationHint}
             canLoopYou={Boolean(recorder.recordingUrl)}
+            activeWordIndex={speakingWordIndex}
           />
 
           <ShadowPitchStage
@@ -603,6 +622,7 @@ export default function ShadowPracticePage() {
             loading={loadingRef}
             waveReady={waveReady}
             rangeHighlight={rangeHighlight}
+            activeWordIndex={speakingWordIndex}
           />
 
           {guideNote && (

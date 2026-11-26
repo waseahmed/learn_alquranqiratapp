@@ -1,5 +1,12 @@
 import { rmsEnvelope } from './audioCompare'
 
+/** Which word is active at normalized playback progress (0–1), equal slots per word. */
+export function activeWordIndex(progress, wordCount) {
+  if (!wordCount || !Number.isFinite(progress) || progress < 0) return -1
+  const t = Math.min(0.999999, Math.max(0, progress))
+  return Math.min(wordCount - 1, Math.floor(t * wordCount))
+}
+
 /** Equal word slots across ayah duration (coaching heuristic). */
 export function wordTimeRange(wordStart, wordEnd, wordCount, durationSec) {
   if (!wordCount || !Number.isFinite(durationSec) || durationSec <= 0) {

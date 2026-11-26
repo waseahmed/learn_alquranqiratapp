@@ -2150,6 +2150,43 @@ a.btn.primary {
   box-shadow: 0 0 0 2px rgba(201, 147, 52, 0.2);
 }
 
+.shadow-word-loop-chip--speaking {
+  background: #fff8e8;
+  border-color: #c99334;
+  color: var(--ink);
+  box-shadow: 0 0 0 3px rgba(201, 147, 52, 0.35);
+  transform: scale(1.03);
+}
+
+.shadow-ayah-words {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.35em 0.5em;
+  line-height: 1.65;
+}
+
+.shadow-ayah-word {
+  display: inline-block;
+  padding: 0.08em 0.22em;
+  border-radius: 10px;
+  transition:
+    background 0.12s ease,
+    box-shadow 0.12s ease,
+    color 0.12s ease;
+}
+
+.shadow-ayah-word--past {
+  opacity: 0.72;
+}
+
+.shadow-ayah-word--active {
+  background: linear-gradient(180deg, #fff6e0 0%, #fce9b8 100%);
+  box-shadow: 0 0 0 2px rgba(201, 147, 52, 0.45);
+  opacity: 1;
+  font-weight: 600;
+}
+
 .shadow-word-loop-actions {
   display: flex;
   flex-wrap: wrap;
