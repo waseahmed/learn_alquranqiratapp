@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import Header from '../components/Layout/Header'
 import ShadowPitchStage from '../components/Practice/ShadowPitchStage'
 import ShadowCoachRail from '../components/Practice/ShadowCoachRail'
 import ShadowSelfCoachRail from '../components/Practice/ShadowSelfCoachRail'
+import ShadowPracticeNav from '../components/Practice/ShadowPracticeNav'
 import ShadowWordLoopBar from '../components/Practice/ShadowWordLoopBar'
 import { surahs } from '../data/quranData'
 import { qaris, getQarisForSurah } from '../data/qaris'
@@ -47,7 +48,6 @@ function recordingsWithLabels(entries) {
 
 export default function ShadowPracticePage() {
   const navigate = useNavigate()
-  const { onMenuToggle, menuCollapsed } = useOutletContext() || {}
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const storageScope = user?.id || 'device'
@@ -750,12 +750,7 @@ export default function ShadowPracticePage() {
       <audio ref={hearRef} preload="auto" className="visually-hidden" aria-hidden />
       <audio ref={practiceAudioRef} preload="auto" className="visually-hidden" aria-hidden />
 
-      <Header
-        title="Shadow practice"
-        subtitle="Coaching · self-coaching · compare"
-        onMenuToggle={onMenuToggle}
-        menuCollapsed={menuCollapsed}
-      />
+      <Header title="Shadow practice" subtitle="Coaching · self-coaching · compare" />
 
       <header className="shadow-practice-header">
         <button type="button" className="btn ghost shadow-practice-back" onClick={() => navigate('/practice')}>
@@ -772,7 +767,9 @@ export default function ShadowPracticePage() {
       </header>
 
       <div className="shadow-coach-layout shadow-coach-layout--triple">
-        <ShadowSelfCoachRail
+        <div className="shadow-practice-left">
+          <ShadowPracticeNav />
+          <ShadowSelfCoachRail
           activePlay={activePlay}
           isPlaying={isPlaying}
           isRecording={recorder.isRecording}
@@ -798,6 +795,7 @@ export default function ShadowPracticePage() {
           onDeleteSaved={handleDeleteSaved}
           saveStatus={saveStatus}
         />
+        </div>
 
         <div className="shadow-coach-main">
           <section className="reader shadow-practice-reader">

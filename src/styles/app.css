@@ -62,6 +62,15 @@ a:focus-visible {
   min-height: 100vh;
 }
 
+.app.app--shadow-practice {
+  grid-template-columns: 1fr;
+}
+
+.main--shadow-practice {
+  padding-left: 14px;
+  padding-right: 14px;
+}
+
 @media (min-width: 821px) {
   .app.app--menu-collapsed {
     grid-template-columns: 1fr;
@@ -1843,13 +1852,83 @@ a.btn.primary {
   grid-template-columns: minmax(260px, 300px) minmax(0, 1fr) minmax(280px, 320px);
 }
 
+.shadow-practice-left {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: sticky;
+  top: 12px;
+  align-self: start;
+}
+
+.shadow-practice-nav {
+  padding: 12px 12px 10px;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.shadow-practice-nav-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin-bottom: 10px;
+  padding: 4px 6px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+}
+
+.shadow-practice-nav-logo {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.shadow-practice-nav-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.2;
+}
+
+.shadow-practice-nav-brand-text strong {
+  font-size: 14px;
+  color: var(--ink);
+}
+
+.shadow-practice-nav-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.shadow-practice-nav-link {
+  font-size: 13px;
+  padding: 8px 10px;
+}
+
 @media (max-width: 1100px) {
   .shadow-coach-layout--triple {
     grid-template-columns: 1fr;
   }
 
-  .shadow-self-rail {
+  .shadow-practice-left {
     order: -2;
+    position: static;
+  }
+
+  .shadow-self-rail {
+    order: unset;
   }
 
   .shadow-qari-rail {

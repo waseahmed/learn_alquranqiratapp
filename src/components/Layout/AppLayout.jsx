@@ -11,6 +11,7 @@ import {
 export default function AppLayout() {
   const navigate = useNavigate()
   const location = useLocation()
+  const isShadowPractice = /^\/practice\/shadow(\/|$)/.test(location.pathname)
   const saved = loadLastPosition()
   const [surah, setSurah] = useState(saved?.surah || 1)
   const [ayah, setAyah] = useState(saved?.ayah || 1)
@@ -58,7 +59,10 @@ export default function AppLayout() {
   }
 
   return (
-    <div className={`app${menuCollapsed ? ' app--menu-collapsed' : ''}`}>
+    <div
+      className={`app${menuCollapsed ? ' app--menu-collapsed' : ''}${isShadowPractice ? ' app--shadow-practice' : ''}`}
+    >
+      {!isShadowPractice && (
       <Sidebar
         currentSurah={surah}
         currentAyah={ayah}
@@ -69,7 +73,8 @@ export default function AppLayout() {
         menuCollapsed={menuCollapsed}
         onCollapseMainMenu={() => setMenuCollapsed(true)}
       />
-      <main className="main">
+      )}
+      <main className={`main${isShadowPractice ? ' main--shadow-practice' : ''}`}>
         <Outlet
           context={{
             surah,
