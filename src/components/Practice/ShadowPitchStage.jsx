@@ -124,13 +124,10 @@ export default function ShadowPitchStage({
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
     ctx.clearRect(0, 0, width, height)
 
-    const bg = ctx.createLinearGradient(0, 0, 0, height)
-    bg.addColorStop(0, 'rgba(12, 18, 38, 0.95)')
-    bg.addColorStop(1, 'rgba(8, 12, 28, 0.98)')
-    ctx.fillStyle = bg
+    ctx.fillStyle = '#fbfdf9'
     ctx.fillRect(0, 0, width, height)
 
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.06)'
+    ctx.strokeStyle = 'rgba(30, 96, 57, 0.08)'
     ctx.lineWidth = 1
     for (let row = 0; row <= LEVELS; row += 1) {
       const y = 22 + ((height - 44) / LEVELS) * row
@@ -147,13 +144,13 @@ export default function ShadowPitchStage({
     drawSmoothContour(ctx, refLevels, {
       width,
       height,
-      color: 'rgba(232, 198, 106, 0.35)',
+      color: 'rgba(30, 96, 57, 0.25)',
       lineWidth: 1.5,
     })
     drawSteppedContour(ctx, refLevels, {
       width,
       height,
-      color: 'rgba(232, 198, 106, 0.95)',
+      color: 'rgba(30, 96, 57, 0.9)',
       lineWidth: 3.5,
     })
 
@@ -161,12 +158,12 @@ export default function ShadowPitchStage({
       drawSmoothContour(ctx, practiceLevels, {
         width,
         height,
-        color: 'rgba(140, 210, 255, 0.75)',
+        color: 'rgba(201, 147, 52, 0.85)',
         lineWidth: 2,
       })
     }
 
-    ctx.fillStyle = 'rgba(232, 198, 106, 0.85)'
+    ctx.fillStyle = 'rgba(30, 96, 57, 0.65)'
     ctx.font = '600 11px system-ui, sans-serif'
     ctx.fillText('home', 32, height - 8)
     ctx.textAlign = 'right'
@@ -177,7 +174,7 @@ export default function ShadowPitchStage({
       const padX = 28
       const innerW = width - padX * 2
       const stepW = innerW / words.length
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.45)'
+      ctx.fillStyle = 'rgba(51, 73, 44, 0.45)'
       ctx.font = '11px system-ui'
       words.forEach((w, i) => {
         const cx = padX + stepW * i + stepW / 2
