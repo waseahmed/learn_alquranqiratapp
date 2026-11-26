@@ -11,6 +11,7 @@ export default function PracticePage() {
       rangeNote={ctx.rangeNote}
       onNavigate={ctx.onNavigate}
       onMenuToggle={ctx.onMenuToggle}
+      menuCollapsed={ctx.menuCollapsed}
     />
   )
 }

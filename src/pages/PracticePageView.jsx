@@ -26,6 +26,7 @@ export default function PracticePageView({
   rangeNote,
   onNavigate,
   onMenuToggle,
+  menuCollapsed,
 }) {
   const navigate = useNavigate()
   const {
@@ -345,6 +346,7 @@ export default function PracticePageView({
         title="Listen & Imitate Different Qaris"
         subtitle="Qirat practice"
         onMenuToggle={onMenuToggle}
+        menuCollapsed={menuCollapsed}
       />
 
       <div className="practice-control-bar" role="toolbar" aria-label="Practice controls">

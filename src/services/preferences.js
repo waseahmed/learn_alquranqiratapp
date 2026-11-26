@@ -1,4 +1,5 @@
 const SIDEBAR_KEY = 'aqqaSidebarCollapsed'
+const MAIN_MENU_COLLAPSED_KEY = 'aqqaMainMenuCollapsed'
 const QARIS_KEY = 'aqqaSelectedQaris'
 const LAST_POS_KEY = 'aqqaLastPosition'
 
@@ -27,6 +28,14 @@ export function loadSidebarCollapsed() {
 
 export function saveSidebarCollapsed(map) {
   localStorage.setItem(SIDEBAR_KEY, JSON.stringify(map))
+}
+
+export function loadMainMenuCollapsed() {
+  return localStorage.getItem(MAIN_MENU_COLLAPSED_KEY) === '1'
+}
+
+export function saveMainMenuCollapsed(collapsed) {
+  localStorage.setItem(MAIN_MENU_COLLAPSED_KEY, collapsed ? '1' : '0')
 }
 
 export function loadLastPosition() {

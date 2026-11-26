@@ -21,7 +21,7 @@ function formatWhen(iso) {
 }
 
 export default function MyAttemptsPage() {
-  const { onMenuToggle, onNavigate } = useOutletContext()
+  const { onMenuToggle, menuCollapsed, onNavigate } = useOutletContext()
   const { user } = useAuth()
   const [attempts, setAttempts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -54,7 +54,12 @@ export default function MyAttemptsPage() {
 
   return (
     <section className="guide attempts-page">
-      <Header title="My Attempts" subtitle="Your Compare Audio practice history" onMenuToggle={onMenuToggle} />
+      <Header
+        title="My Attempts"
+        subtitle="Your Compare Audio practice history"
+        onMenuToggle={onMenuToggle}
+        menuCollapsed={menuCollapsed}
+      />
 
       {!user?.id ? (
         <div className="guide-card">

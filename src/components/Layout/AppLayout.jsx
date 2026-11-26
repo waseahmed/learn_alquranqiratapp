@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import { juzList } from '../../data/juz'
-import { loadLastPosition } from '../../services/preferences'
+import {
+  loadLastPosition,
+  loadMainMenuCollapsed,
+  saveMainMenuCollapsed,
+} from '../../services/preferences'
 
 export default function AppLayout() {
   const navigate = useNavigate()
@@ -12,10 +16,31 @@ export default function AppLayout() {
   const [ayah, setAyah] = useState(saved?.ayah || 1)
   const [rangeNote, setRangeNote] = useState('')
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [menuCollapsed, setMenuCollapsed] = useState(() => loadMainMenuCollapsed())
 
   useEffect(() => {
     setMobileOpen(false)
   }, [location.pathname])
+
+  useEffect(() => {
+    saveMainMenuCollapsed(menuCollapsed)
+  }, [menuCollapsed])
+
+  function isMobileMenu() {
+    return typeof window !== 'undefined' && window.matchMedia('(max-width: 820px)').matches
+  }
+
+  function handleMenuToggle() {
+    if (isMobileMenu()) {
+      setMobileOpen(true)
+      return
+    }
+    setMenuCollapsed((c) => !c)
+  }
+
+  function onCloseMobile() {
+    setMobileOpen(false)
+  }
 
   function navigateTo(nextSurah, nextAyah, note = '') {
     setSurah(Number(nextSurah))
@@ -33,14 +58,16 @@ export default function AppLayout() {
   }
 
   return (
-    <div className="app">
+    <div className={`app${menuCollapsed ? ' app--menu-collapsed' : ''}`}>
       <Sidebar
         currentSurah={surah}
         currentAyah={ayah}
         onSelectSurah={(n, a = 1) => navigateTo(n, a)}
         onSelectJuz={selectJuz}
         mobileOpen={mobileOpen}
-        onCloseMobile={() => setMobileOpen(false)}
+        onCloseMobile={onCloseMobile}
+        menuCollapsed={menuCollapsed}
+        onCollapseMainMenu={() => setMenuCollapsed(true)}
       />
       <main className="main">
         <Outlet
@@ -49,7 +76,8 @@ export default function AppLayout() {
             ayah,
             rangeNote,
             onNavigate: navigateTo,
-            onMenuToggle: () => setMobileOpen(true),
+            menuCollapsed,
+            onMenuToggle: handleMenuToggle,
           }}
         />
       </main>

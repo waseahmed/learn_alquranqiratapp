@@ -80,7 +80,7 @@ function SlotCard({
 }
 
 export default function CompareAudioPage() {
-  const { onMenuToggle, surah, ayah } = useOutletContext()
+  const { onMenuToggle, menuCollapsed, surah, ayah } = useOutletContext()
   const { qariOrder } = useProfile()
   const { user } = useAuth()
 
@@ -377,6 +377,7 @@ export default function CompareAudioPage() {
         title="Compare Audio"
         subtitle="Hear the difference and improve"
         onMenuToggle={onMenuToggle}
+        menuCollapsed={menuCollapsed}
       />
 
       <p className="guide-intro">

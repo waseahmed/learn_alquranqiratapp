@@ -3,11 +3,11 @@ import Header from '../components/Layout/Header'
 import { commonMistakes } from '../data/commonMistakes'
 
 export default function CommonMistakesPage() {
-  const { onMenuToggle } = useOutletContext()
+  const { onMenuToggle, menuCollapsed } = useOutletContext()
 
   return (
     <section className="guide">
-      <Header title="Common Mistakes" onMenuToggle={onMenuToggle} />
+      <Header title="Common Mistakes" onMenuToggle={onMenuToggle} menuCollapsed={menuCollapsed} />
       <p className="guide-intro">
         Kid-friendly reminders for listening carefully and correcting gently.
       </p>

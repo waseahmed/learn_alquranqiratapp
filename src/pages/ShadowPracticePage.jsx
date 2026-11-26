@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom'
 import Header from '../components/Layout/Header'
 import ShadowPitchStage from '../components/Practice/ShadowPitchStage'
 import ShadowCoachRail from '../components/Practice/ShadowCoachRail'
@@ -47,6 +47,7 @@ function recordingsWithLabels(entries) {
 
 export default function ShadowPracticePage() {
   const navigate = useNavigate()
+  const { onMenuToggle, menuCollapsed } = useOutletContext() || {}
   const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
   const storageScope = user?.id || 'device'
@@ -647,9 +648,23 @@ export default function ShadowPracticePage() {
 
   async function handleLoopCoach() {
     if (!hearRef.current) return
+    const el = hearRef.current
+
+    if (loopPlayMode === 'coach' && activePlay === 'loop-coach') {
+      if (!el.paused) {
+        el.pause()
+        return
+      }
+      try {
+        await el.play()
+      } catch {
+        setLoadError('Could not resume loop coach.')
+      }
+      return
+    }
+
     stopPlayback()
     ensureRefSrc()
-    const el = hearRef.current
     setLoopPlayMode('coach')
     if (el.readyState < 1) {
       await new Promise((resolve) => {
@@ -667,8 +682,23 @@ export default function ShadowPracticePage() {
 
   async function handleLoopYou() {
     if (!ensurePracticeSrc()) return
-    stopPlayback()
     const el = practiceAudioRef.current
+    if (!el) return
+
+    if (loopPlayMode === 'you' && activePlay === 'loop-you') {
+      if (!el.paused) {
+        el.pause()
+        return
+      }
+      try {
+        await el.play()
+      } catch {
+        setLoadError('Could not resume your loop.')
+      }
+      return
+    }
+
+    stopPlayback()
     setLoopPlayMode('you')
     armLoopWindow(el, { persistent: true })
     setActivePlay('loop-you')
@@ -720,7 +750,12 @@ export default function ShadowPracticePage() {
       <audio ref={hearRef} preload="auto" className="visually-hidden" aria-hidden />
       <audio ref={practiceAudioRef} preload="auto" className="visually-hidden" aria-hidden />
 
-      <Header title="Shadow practice" subtitle="Coaching · self-coaching · compare" />
+      <Header
+        title="Shadow practice"
+        subtitle="Coaching · self-coaching · compare"
+        onMenuToggle={onMenuToggle}
+        menuCollapsed={menuCollapsed}
+      />
 
       <header className="shadow-practice-header">
         <button type="button" className="btn ghost shadow-practice-back" onClick={() => navigate('/practice')}>
@@ -787,6 +822,7 @@ export default function ShadowPracticePage() {
             onLoopCoach={handleLoopCoach}
             onLoopYou={handleLoopYou}
             loopPlaying={loopPlayMode}
+            isPlaying={isPlaying}
             durationSec={loopDurationHint}
             canLoopYou={Boolean(recorder.recordingUrl)}
             activeWordIndex={speakingWordIndex}

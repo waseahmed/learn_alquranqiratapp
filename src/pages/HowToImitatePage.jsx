@@ -32,11 +32,11 @@ const steps = [
 ]
 
 export default function HowToImitatePage() {
-  const { onMenuToggle } = useOutletContext()
+  const { onMenuToggle, menuCollapsed } = useOutletContext()
 
   return (
     <section className="guide">
-      <Header title="How to Imitate a Qari" onMenuToggle={onMenuToggle} />
+      <Header title="How to Imitate a Qari" onMenuToggle={onMenuToggle} menuCollapsed={menuCollapsed} />
 
       <p className="guide-intro">
         Core method: Listen → Break into short phrases → Shadow → Copy pitch /

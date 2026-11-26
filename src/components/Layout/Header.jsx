@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import UserMenu from './UserMenu'
 
-export default function Header({ title, subtitle, onMenuToggle }) {
+export default function Header({ title, subtitle, onMenuToggle, menuCollapsed }) {
   const navigate = useNavigate()
 
   return (
@@ -11,9 +11,9 @@ export default function Header({ title, subtitle, onMenuToggle }) {
           {onMenuToggle && (
             <button
               type="button"
-              className="btn menu-toggle"
+              className={`btn menu-toggle${menuCollapsed ? ' menu-toggle--show-desktop' : ''}`}
               onClick={onMenuToggle}
-              aria-label="Open navigation menu"
+              aria-label={menuCollapsed ? 'Show navigation menu' : 'Open navigation menu'}
             >
               ☰ Menu
             </button>

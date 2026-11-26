@@ -8,6 +8,7 @@ export default function ShadowWordLoopBar({
   onLoopCoach,
   onLoopYou,
   loopPlaying,
+  isPlaying,
   durationSec,
   canLoopYou = false,
   activeWordIndex = -1,
@@ -61,23 +62,44 @@ export default function ShadowWordLoopBar({
       </div>
       <p className="shadow-word-loop-meta">{rangeLabel}</p>
       <div className="shadow-word-loop-actions">
-        <button
-          type="button"
-          className={`btn ${loopPlaying === 'coach' ? 'primary' : ''}`}
-          onClick={onLoopCoach}
+        <LoopToggleButton
+          mode="coach"
+          loopPlaying={loopPlaying}
+          isPlaying={isPlaying}
           disabled={!words.length}
-        >
-          ↻ Loop coach
-        </button>
-        <button
-          type="button"
-          className={`btn ${loopPlaying === 'you' ? 'speed-on' : ''}`}
-          onClick={onLoopYou}
+          onClick={onLoopCoach}
+          playLabel="↻ Loop coach"
+        />
+        <LoopToggleButton
+          mode="you"
+          loopPlaying={loopPlaying}
+          isPlaying={isPlaying}
           disabled={!words.length || !canLoopYou}
-        >
-          ↻ Loop you
-        </button>
+          onClick={onLoopYou}
+          playLabel="↻ Loop you"
+        />
       </div>
     </section>
+  )
+}
+
+function LoopToggleButton({ mode, loopPlaying, isPlaying, disabled, onClick, playLabel }) {
+  const active = loopPlaying === mode
+  const playing = active && isPlaying
+  const paused = active && !isPlaying
+  let label = playLabel
+  if (playing) label = '⏸ Pause loop'
+  else if (paused) label = '▶ Resume loop'
+
+  return (
+    <button
+      type="button"
+      className={`btn ${playing ? 'primary' : ''} ${paused ? 'speed-on' : ''}`}
+      onClick={onClick}
+      disabled={disabled}
+      aria-pressed={active}
+    >
+      {label}
+    </button>
   )
 }

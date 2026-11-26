@@ -22,6 +22,8 @@ export default function Sidebar({
   onSelectJuz,
   mobileOpen,
   onCloseMobile,
+  menuCollapsed,
+  onCollapseMainMenu,
 }) {
   const navigate = useNavigate()
   const { bookmarks, sidebar } = useProfile()
@@ -78,7 +80,9 @@ export default function Sidebar({
           onClick={onCloseMobile}
         />
       )}
-      <aside className={`sidebar ${mobileOpen ? 'open' : ''}`}>
+      <aside
+        className={`sidebar ${mobileOpen ? 'open' : ''}${menuCollapsed ? ' sidebar--main-collapsed' : ''}`}
+      >
         <button
           type="button"
           className="brand"
@@ -238,6 +242,20 @@ export default function Sidebar({
               </div>
             )}
           </>
+        )}
+
+        {onCollapseMainMenu && (
+          <button
+            type="button"
+            className="sidebar-collapse-main"
+            onClick={() => {
+              onCollapseMainMenu()
+              onCloseMobile?.()
+            }}
+            aria-label="Collapse main menu"
+          >
+            « Collapse menu
+          </button>
         )}
 
         <div className="sidebar-page">

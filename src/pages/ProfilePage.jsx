@@ -8,7 +8,7 @@ import { surahs } from '../data/quranData'
 import { DEFAULT_THEME } from '../services/profileService'
 
 export default function ProfilePage() {
-  const { onMenuToggle, onNavigate } = useOutletContext()
+  const { onMenuToggle, menuCollapsed, onNavigate } = useOutletContext()
   const { displayName, avatarUrl, role, user } = useAuth()
   const {
     qariOrder,
@@ -83,7 +83,12 @@ export default function ProfilePage() {
 
   return (
     <section className="guide profile-page">
-      <Header title="My Profile" subtitle="Student preferences" onMenuToggle={onMenuToggle} />
+      <Header
+        title="My Profile"
+        subtitle="Student preferences"
+        onMenuToggle={onMenuToggle}
+        menuCollapsed={menuCollapsed}
+      />
 
       {message && <p className="profile-message" role="status">{message}</p>}
 
