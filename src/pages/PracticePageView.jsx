@@ -295,8 +295,7 @@ export default function PracticePageView({
     scheduleAutoContinue(result, { mode: 'single', qariKey: key, rate })
   }
 
-  function openShadowPractice() {
-    const key = primaryQariKey
+  function openShadowPractice(key = primaryQariKey) {
     if (!key || isUnavailable(key, surah, ayah)) return
     stopEverything()
     const keys = selectedList.map((q) => q.key).join(',')
@@ -509,7 +508,7 @@ export default function PracticePageView({
             onReplay={handleReplay}
             onPlayToggle={handlePlayToggle}
             onSlowToggle={handleSlowToggle}
-            onShadow={runShadow}
+            onShadow={openShadowPractice}
             onAudioError={(key) => markUnavailable(key, surah, ayah)}
             registerAudio={registerAudio}
           />
