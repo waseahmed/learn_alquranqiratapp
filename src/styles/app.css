@@ -1797,6 +1797,28 @@ a.btn.primary {
   align-items: start;
 }
 
+.shadow-coach-layout--triple {
+  grid-template-columns: minmax(260px, 300px) minmax(0, 1fr) minmax(280px, 320px);
+}
+
+@media (max-width: 1100px) {
+  .shadow-coach-layout--triple {
+    grid-template-columns: 1fr;
+  }
+
+  .shadow-self-rail {
+    order: -2;
+  }
+
+  .shadow-qari-rail {
+    order: 0;
+  }
+
+  .shadow-coach-main {
+    order: -1;
+  }
+}
+
 @media (max-width: 960px) {
   .shadow-coach-layout {
     grid-template-columns: 1fr;
@@ -1805,6 +1827,100 @@ a.btn.primary {
   .shadow-coach-rail {
     order: -1;
   }
+}
+
+.shadow-saved-list-wrap {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #ebe4d4;
+}
+
+.shadow-saved-list-title {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.shadow-saved-list-hint,
+.shadow-saved-status,
+.shadow-saved-empty {
+  margin: 0 0 10px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.shadow-saved-status {
+  color: var(--green);
+  font-weight: 600;
+}
+
+.shadow-saved-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.shadow-saved-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid #ebe4d4;
+  background: #faf8f3;
+}
+
+.shadow-saved-item--active {
+  border-color: var(--green);
+  background: #f4f9f1;
+}
+
+.shadow-saved-item-main {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.shadow-saved-slot {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--green);
+}
+
+.shadow-saved-date {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.shadow-saved-coach {
+  font-size: 10px;
+  color: var(--ink);
+  opacity: 0.75;
+}
+
+.shadow-coach-save {
+  flex: 1 1 100%;
+  font-weight: 700;
+}
+
+.shadow-saved-item-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.shadow-saved-delete {
+  min-width: 32px;
+  padding: 6px 8px;
+  line-height: 1;
 }
 
 .shadow-coach-main {

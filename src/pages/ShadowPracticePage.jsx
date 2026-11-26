@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import Header from '../components/Layout/Header'
 import ShadowPitchStage from '../components/Practice/ShadowPitchStage'
 import ShadowCoachRail from '../components/Practice/ShadowCoachRail'
+import ShadowSelfCoachRail from '../components/Practice/ShadowSelfCoachRail'
 import ShadowWordLoopBar from '../components/Practice/ShadowWordLoopBar'
 import { surahs } from '../data/quranData'
 import { qaris, getQarisForSurah } from '../data/qaris'
@@ -24,10 +25,31 @@ import {
   timingsMatchWordCount,
   wordStartFractionsFromTimings,
 } from '../services/quranComWordTimings'
+import {
+  formatSavedAt,
+  getShadowRecordingBlob,
+  listShadowRecordings,
+  pushShadowRecording,
+  removeShadowRecording,
+} from '../services/shadowRecordingStore'
+import { useAuth } from '../contexts/AuthContext'
+
+function recordingsWithLabels(entries) {
+  return entries.map((e) => {
+    const coach = qaris.find((q) => q.key === e.coachKey)
+    return {
+      ...e,
+      savedAtLabel: formatSavedAt(e.savedAt),
+      coachName: coach?.name || (e.coachKey ? String(e.coachKey) : 'Unknown coach'),
+    }
+  })
+}
 
 export default function ShadowPracticePage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [searchParams, setSearchParams] = useSearchParams()
+  const storageScope = user?.id || 'device'
 
   const surah = Math.min(114, Math.max(1, Number(searchParams.get('surah')) || 1))
   const ayah = Math.max(1, Number(searchParams.get('ayah')) || 1)
@@ -67,11 +89,15 @@ export default function ShadowPracticePage() {
   const [loopPlayMode, setLoopPlayMode] = useState(null)
   const [qcomTimings, setQcomTimings] = useState(null)
   const [wordTimingNote, setWordTimingNote] = useState('')
+  const [savedRecordings, setSavedRecordings] = useState([])
+  const [activeSavedId, setActiveSavedId] = useState(null)
+  const [saveStatus, setSaveStatus] = useState('')
   const hearRef = useRef(null)
   const practiceAudioRef = useRef(null)
   const rafRef = useRef(null)
   const abHandlersRef = useRef({ onRefEnd: null, onYouEnd: null })
   const loopWinRef = useRef(null)
+  const savedBlobUrlRef = useRef(null)
 
   const currentSurah = surahs[String(surah)]
   const arabic = currentSurah?.ayahs?.[String(ayah)] || ''
@@ -255,11 +281,21 @@ export default function ShadowPracticePage() {
   }, [loadReference])
 
   const progressSource = useCallback(() => {
-    if (activePlay === 'you' || activePlay === 'ab-you' || activePlay === 'loop-you') {
+    if (
+      activePlay === 'you' ||
+      activePlay === 'ab-you' ||
+      activePlay === 'loop-you' ||
+      activePlay?.startsWith('saved-')
+    ) {
       return practiceAudioRef.current
     }
     return hearRef.current
   }, [activePlay])
+
+  useEffect(() => {
+    setSavedRecordings(recordingsWithLabels(listShadowRecordings(storageScope, surah, ayah)))
+    setActiveSavedId(null)
+  }, [storageScope, surah, ayah])
 
   useEffect(() => {
     if (hearRef.current) hearRef.current.playbackRate = playbackRate
@@ -435,9 +471,16 @@ export default function ShadowPracticePage() {
 
   function ensurePracticeSrc() {
     const el = practiceAudioRef.current
-    if (!el || !recorder.recordingUrl) return false
-    if (el.src !== recorder.recordingUrl) el.src = recorder.recordingUrl
-    return true
+    if (!el) return false
+    if (recorder.recordingUrl) {
+      if (el.src !== recorder.recordingUrl) el.src = recorder.recordingUrl
+      return true
+    }
+    if (savedBlobUrlRef.current) {
+      if (el.src !== savedBlobUrlRef.current) el.src = savedBlobUrlRef.current
+      return true
+    }
+    return Boolean(el.src)
   }
 
   function handleStopCoach(key) {
@@ -454,7 +497,66 @@ export default function ShadowPracticePage() {
     recorder.clear()
     setPracticeHz([])
     setStudentAnalysis(null)
+    setActiveSavedId(null)
+    if (savedBlobUrlRef.current) {
+      URL.revokeObjectURL(savedBlobUrlRef.current)
+      savedBlobUrlRef.current = null
+    }
     if (practiceAudioRef.current) practiceAudioRef.current.removeAttribute('src')
+  }
+
+  async function loadStudentFromBlob(blob) {
+    const analysis = await decodeAudioBlob(blob)
+    const f0 = computeF0Contour(analysis.channelData, analysis.sampleRate)
+    setPracticeHz(f0.hz)
+    setStudentAnalysis(analysis)
+  }
+
+  async function handlePlaySaved(entry) {
+    stopPlayback()
+    try {
+      const blob = await getShadowRecordingBlob(entry.id)
+      if (!blob) {
+        setLoadError('Saved recording is missing.')
+        return
+      }
+      if (savedBlobUrlRef.current) URL.revokeObjectURL(savedBlobUrlRef.current)
+      const url = URL.createObjectURL(blob)
+      savedBlobUrlRef.current = url
+      await loadStudentFromBlob(blob)
+      const el = practiceAudioRef.current
+      if (!el) return
+      el.src = url
+      setActiveSavedId(entry.id)
+      setActivePlay(`saved-${entry.id}`)
+      await el.play()
+    } catch {
+      setLoadError('Could not play saved recording.')
+    }
+  }
+
+  async function handleSaveRecording() {
+    if (!recorder.recordingUrl || recorder.isRecording) return
+    setSaveStatus('Saving…')
+    try {
+      const res = await fetch(recorder.recordingUrl)
+      const blob = await res.blob()
+      const next = await pushShadowRecording(storageScope, surah, ayah, blob, {
+        coachKey: qariKey,
+      })
+      setSavedRecordings(recordingsWithLabels(next))
+      setSaveStatus('Saved — keeping your latest 3 takes for this ayah.')
+      window.setTimeout(() => setSaveStatus(''), 5000)
+    } catch {
+      setSaveStatus('Could not save recording locally.')
+    }
+  }
+
+  async function handleDeleteSaved(entry) {
+    if (activePlay === `saved-${entry.id}`) stopPlayback()
+    const next = await removeShadowRecording(storageScope, surah, ayah, entry.id)
+    setSavedRecordings(recordingsWithLabels(next))
+    if (activeSavedId === entry.id) setActiveSavedId(null)
   }
 
   async function handleHearQari(key) {
@@ -603,7 +705,8 @@ export default function ShadowPracticePage() {
       activePlay === 'loop-coach' ||
       activePlay === 'you' ||
       activePlay === 'ab-you' ||
-      activePlay === 'loop-you'
+      activePlay === 'loop-you' ||
+      activePlay?.startsWith('saved-')
     if (!highlightsAudio) return -1
     return activeWordIndex(playProgress, words.length, wordStartFractions)
   }, [isPlaying, activePlay, playProgress, words.length, wordStartFractions])
@@ -633,7 +736,34 @@ export default function ShadowPracticePage() {
         <span className="shadow-practice-beta">BETA</span>
       </header>
 
-      <div className="shadow-coach-layout">
+      <div className="shadow-coach-layout shadow-coach-layout--triple">
+        <ShadowSelfCoachRail
+          activePlay={activePlay}
+          isPlaying={isPlaying}
+          isRecording={recorder.isRecording}
+          hasRecording={Boolean(recorder.recordingUrl || studentAnalysis)}
+          playbackRate={playbackRate}
+          onPlaybackRateChange={setPlaybackRate}
+          onRecordToggle={recorder.toggle}
+          onClearRecording={handleClearRecording}
+          onSaveRecording={handleSaveRecording}
+          canSave={Boolean(recorder.recordingUrl) && !recorder.isRecording}
+          onPlayYours={handlePlayYours}
+          onPlayBoth={handlePlayBoth}
+          onCompareAb={handleCompareAb}
+          onStop={stopPlayback}
+          recordingError={recorder.error}
+          comparison={comparison}
+          recitationAnalysis={recitationAnalysis}
+          coachName={qari?.name || 'Coach'}
+          comparisonScope={phraseScope?.label}
+          savedRecordings={savedRecordings}
+          activeSavedId={activeSavedId}
+          onPlaySaved={handlePlaySaved}
+          onDeleteSaved={handleDeleteSaved}
+          saveStatus={saveStatus}
+        />
+
         <div className="shadow-coach-main">
           <section className="reader shadow-practice-reader">
             <div className="reader-head">
@@ -707,25 +837,10 @@ export default function ShadowPracticePage() {
           onFocusQari={handleQariChange}
           onHearQari={handleHearQari}
           onStopCoach={handleStopCoach}
-          onClearRecording={handleClearRecording}
           activePlay={activePlay}
           isPlaying={isPlaying}
-          isRecording={recorder.isRecording}
-          hasRecording={Boolean(recorder.recordingUrl)}
-          playbackRate={playbackRate}
-          onPlaybackRateChange={setPlaybackRate}
-          onRecordToggle={recorder.toggle}
-          onPlayYours={handlePlayYours}
-          onPlayBoth={handlePlayBoth}
-          onCompareAb={handleCompareAb}
-          onStop={stopPlayback}
-          recordingError={recorder.error}
           qariPreviews={qariWaveByKey}
           miniPlayProgress={miniPlayProgress}
-          comparison={comparison}
-          recitationAnalysis={recitationAnalysis}
-          coachName={qari?.name || 'Coach'}
-          comparisonScope={phraseScope?.label}
         />
       </div>
     </div>
