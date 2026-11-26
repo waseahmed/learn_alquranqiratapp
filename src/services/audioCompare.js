@@ -1,5 +1,40 @@
 const MAX_POINTS = 240
 
+function smooth3(arr) {
+  if (arr.length < 3) return arr.slice()
+  const out = [arr[0]]
+  for (let i = 1; i < arr.length - 1; i += 1) {
+    out.push((arr[i - 1] + arr[i] * 2 + arr[i + 1]) / 4)
+  }
+  out.push(arr[arr.length - 1])
+  return out
+}
+
+/** Peak (true waveform) envelope for display — closer to a DAW view than RMS blocks. */
+export function peakEnvelope(channelData, points = MAX_POINTS) {
+  const len = channelData.length
+  if (!len) return []
+  const block = Math.max(1, Math.floor(len / points))
+  const envelope = []
+  for (let i = 0; i < points; i += 1) {
+    const start = i * block
+    const end = Math.min(len, start + block)
+    let peak = 0
+    for (let j = start; j < end; j += 1) {
+      const v = Math.abs(channelData[j])
+      if (v > peak) peak = v
+    }
+    envelope.push(peak)
+  }
+  const max = Math.max(...envelope, 1e-8)
+  return smooth3(envelope.map((v) => v / max))
+}
+
+/** Visual envelope for shadow practice (peak + light compression). */
+export function displayEnvelope(channelData, points = MAX_POINTS) {
+  return peakEnvelope(channelData, points).map((v) => Math.sqrt(v))
+}
+
 export function rmsEnvelope(channelData, points = MAX_POINTS) {
   const len = channelData.length
   if (!len) return []

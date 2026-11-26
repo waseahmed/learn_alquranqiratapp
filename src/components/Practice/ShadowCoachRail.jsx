@@ -6,6 +6,8 @@ export default function ShadowCoachRail({
   focusQariKey,
   onFocusQari,
   onHearQari,
+  onStopCoach,
+  onClearRecording,
   activePlay,
   isPlaying,
   isRecording,
@@ -59,6 +61,7 @@ export default function ShadowCoachRail({
             const playing =
               activePlay === `ref-${q.key}` ||
               activePlay === `ab-ref-${q.key}` ||
+              (activePlay === 'loop-coach' && focused) ||
               (activePlay === 'both' && focused)
             return (
               <li
@@ -90,8 +93,18 @@ export default function ShadowCoachRail({
                     type="button"
                     className={`btn shadow-coach-btn ${playing ? 'primary' : ''}`}
                     onClick={() => onHearQari(q.key)}
+                    aria-label={`Hear ${q.name}`}
                   >
                     ▶ Hear
+                  </button>
+                  <button
+                    type="button"
+                    className="btn shadow-coach-btn stop"
+                    onClick={() => onStopCoach(q.key)}
+                    disabled={!playing || !isPlaying}
+                    aria-label={`Stop ${q.name}`}
+                  >
+                    ■
                   </button>
                 </div>
               </li>
@@ -114,6 +127,7 @@ export default function ShadowCoachRail({
           isRecording={isRecording}
           hasRecording={hasRecording}
           onRecordToggle={onRecordToggle}
+          onClearRecording={onClearRecording}
           onPlayYours={onPlayYours}
           onPlayBoth={onPlayBoth}
           onCompareAb={onCompareAb}
@@ -160,6 +174,7 @@ function SelfRecordingToolbar({
   isRecording,
   hasRecording,
   onRecordToggle,
+  onClearRecording,
   onPlayYours,
   onPlayBoth,
   onCompareAb,
@@ -176,6 +191,15 @@ function SelfRecordingToolbar({
         aria-pressed={isRecording}
       >
         {isRecording ? '■ Stop recording' : '🎙 Record'}
+      </button>
+      <button
+        type="button"
+        className="btn ghost shadow-coach-clear"
+        onClick={onClearRecording}
+        disabled={!hasRecording || isRecording}
+        title="Discard your recording and score for this take"
+      >
+        Clear recording
       </button>
       <button
         type="button"

@@ -95,6 +95,19 @@ export function useRecorder() {
     await start()
   }, [isRecording, start, stop])
 
+  const clear = useCallback(() => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop()
+    }
+    setIsRecording(false)
+    cleanupStream()
+    revokeUrl()
+    chunksRef.current = []
+    setRecordingUrl(null)
+    setError(null)
+    mediaRecorderRef.current = null
+  }, [cleanupStream, revokeUrl])
+
   return {
     isRecording,
     recordingUrl,
@@ -102,5 +115,6 @@ export function useRecorder() {
     start,
     stop,
     toggle,
+    clear,
   }
 }

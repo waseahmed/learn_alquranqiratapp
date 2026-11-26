@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { drawWaveformBars } from './shadowWaveformDraw'
 
 const MIN_HZ = 70
 const MAX_HZ = 500
@@ -25,66 +26,6 @@ function hzToLevel(h) {
   if (!h || h <= 0) return null
   const t = Math.max(0, Math.min(1, (h - MIN_HZ) / (MAX_HZ - MIN_HZ)))
   return t
-}
-
-function drawMirrorWaveform(ctx, envelope, { width, height, playProgress, padX, padY }) {
-  const innerW = width - padX * 2
-  const innerH = height - padY * 2
-  const midY = padY + innerH * 0.58
-  const ampH = innerH * 0.38
-  const n = envelope.length
-  if (!n) return
-
-  const stepX = innerW / Math.max(1, n - 1)
-  const playX = padX + playProgress * innerW
-
-  ctx.beginPath()
-  for (let i = 0; i < n; i += 1) {
-    const x = padX + i * stepX
-    const amp = envelope[i] * ampH
-    const y = midY - amp
-    if (i === 0) ctx.moveTo(x, y)
-    else ctx.lineTo(x, y)
-  }
-  for (let i = n - 1; i >= 0; i -= 1) {
-    const x = padX + i * stepX
-    const amp = envelope[i] * ampH
-    ctx.lineTo(x, midY + amp * 0.85)
-  }
-  ctx.closePath()
-  ctx.fillStyle = 'rgba(30, 96, 57, 0.12)'
-  ctx.fill()
-  ctx.strokeStyle = 'rgba(30, 96, 57, 0.45)'
-  ctx.lineWidth = 1.25
-  ctx.stroke()
-
-  if (playProgress > 0.002) {
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(padX, padY, playProgress * innerW, innerH)
-    ctx.clip()
-    ctx.beginPath()
-    for (let i = 0; i < n; i += 1) {
-      const x = padX + i * stepX
-      const amp = envelope[i] * ampH
-      const y = midY - amp
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
-    }
-    for (let i = n - 1; i >= 0; i -= 1) {
-      const x = padX + i * stepX
-      const amp = envelope[i] * ampH
-      ctx.lineTo(x, midY + amp * 0.85)
-    }
-    ctx.closePath()
-    ctx.fillStyle = 'rgba(30, 96, 57, 0.22)'
-    ctx.fill()
-    ctx.strokeStyle = 'rgba(30, 96, 57, 0.75)'
-    ctx.lineWidth = 1.5
-    ctx.stroke()
-    ctx.restore()
-  }
-
 }
 
 function drawPitchPath(ctx, hzSeries, { width, height, padX, padY, color, lineWidth }) {
@@ -162,12 +103,12 @@ export default function ShadowPitchStage({
     }
 
     if (waveReady && envelope.length) {
-      drawMirrorWaveform(ctx, envelope, {
-        width,
-        height,
-        playProgress: isPlaying ? playProgress : playProgress,
-        padX: PAD_X,
-        padY: PAD_Y,
+      drawWaveformBars(ctx, envelope, {
+        x: PAD_X,
+        y: PAD_Y,
+        width: width - PAD_X * 2,
+        height: height - PAD_Y * 2,
+        playProgress,
       })
 
       drawPitchPath(ctx, referenceHz, {

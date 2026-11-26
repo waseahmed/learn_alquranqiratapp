@@ -1,7 +1,7 @@
-import { decodeAudioBlob, rmsEnvelope } from './audioCompare'
+import { decodeAudioBlob, displayEnvelope } from './audioCompare'
 import { computeF0Contour } from './recitationAnalysis'
 
-const WAVE_POINTS = 320
+const WAVE_POINTS = 512
 
 function waitAudioEvent(el, eventName, timeoutMs = 25000) {
   return new Promise((resolve, reject) => {
@@ -40,7 +40,7 @@ function signalEnergy(signal) {
 }
 
 function analysisFromPcm(channelData, sampleRate, duration) {
-  const envelope = rmsEnvelope(channelData, WAVE_POINTS)
+  const envelope = displayEnvelope(channelData, WAVE_POINTS)
   const f0 = computeF0Contour(channelData, sampleRate)
   return {
     envelope,

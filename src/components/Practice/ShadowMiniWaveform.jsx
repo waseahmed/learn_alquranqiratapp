@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { drawWaveformBars } from './shadowWaveformDraw'
 
 export default function ShadowMiniWaveform({
   envelope = [],
@@ -38,29 +39,23 @@ export default function ShadowMiniWaveform({
       return
     }
 
-    const midY = height * 0.55
-    const ampH = height * 0.38
     const padX = 3
     const innerW = width - padX * 2
-    const stepX = innerW / Math.max(1, n - 1)
-
-    ctx.beginPath()
-    for (let i = 0; i < n; i += 1) {
-      const x = padX + i * stepX
-      const y = midY - envelope[i] * ampH
-      if (i === 0) ctx.moveTo(x, y)
-      else ctx.lineTo(x, y)
-    }
-    for (let i = n - 1; i >= 0; i -= 1) {
-      const x = padX + i * stepX
-      ctx.lineTo(x, midY + envelope[i] * ampH * 0.7)
-    }
-    ctx.closePath()
-    ctx.fillStyle = active ? 'rgba(30, 96, 57, 0.2)' : 'rgba(30, 96, 57, 0.12)'
-    ctx.fill()
-    ctx.strokeStyle = active ? 'rgba(30, 96, 57, 0.65)' : 'rgba(30, 96, 57, 0.4)'
-    ctx.lineWidth = 1
-    ctx.stroke()
+    drawWaveformBars(ctx, envelope, {
+      x: padX,
+      y: 2,
+      width: innerW,
+      height: height - 4,
+      midRatio: 0.5,
+      playProgress,
+      palette: active
+        ? {
+            base: 'rgba(30, 96, 57, 0.5)',
+            played: 'rgba(30, 96, 57, 0.95)',
+            inactive: 'rgba(30, 96, 57, 0.22)',
+          }
+        : undefined,
+    })
 
     if (playProgress > 0.002) {
       const playX = padX + playProgress * innerW

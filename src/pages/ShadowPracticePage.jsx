@@ -8,7 +8,7 @@ import { surahs } from '../data/quranData'
 import { qaris, getQarisForSurah } from '../data/qaris'
 import { getAyahAudioUrl } from '../services/audioService'
 import { analyzeRecitationFromUrl } from '../services/recitationAudioLoader'
-import { compareEnvelopes, decodeAudioBlob, rmsEnvelope } from '../services/audioCompare'
+import { compareEnvelopes, decodeAudioBlob, displayEnvelope } from '../services/audioCompare'
 import { buildRecitationAnalysis, computeF0Contour } from '../services/recitationAnalysis'
 import {
   sliceAudioAnalysis,
@@ -311,7 +311,7 @@ export default function ShadowPracticePage() {
         setPracticeHz(f0.hz)
         setStudentAnalysis(analysis)
         if (!waveReady) {
-          setEnvelope(rmsEnvelope(analysis.channelData, 320))
+          setEnvelope(displayEnvelope(analysis.channelData, 512))
         }
       } catch {
         if (!cancelled) setLoadError('Could not analyze your recording.')
@@ -386,6 +386,23 @@ export default function ShadowPracticePage() {
     if (!el || !recorder.recordingUrl) return false
     if (el.src !== recorder.recordingUrl) el.src = recorder.recordingUrl
     return true
+  }
+
+  function handleStopCoach(key) {
+    const playingThis =
+      activePlay === `ref-${key}` ||
+      activePlay === `ab-ref-${key}` ||
+      (activePlay === 'loop-coach' && key === qariKey) ||
+      (activePlay === 'both' && key === qariKey)
+    if (playingThis) stopPlayback()
+  }
+
+  function handleClearRecording() {
+    stopPlayback()
+    recorder.clear()
+    setPracticeHz([])
+    setStudentAnalysis(null)
+    if (practiceAudioRef.current) practiceAudioRef.current.removeAttribute('src')
   }
 
   async function handleHearQari(key) {
@@ -612,6 +629,8 @@ export default function ShadowPracticePage() {
           focusQariKey={qariKey}
           onFocusQari={handleQariChange}
           onHearQari={handleHearQari}
+          onStopCoach={handleStopCoach}
+          onClearRecording={handleClearRecording}
           activePlay={activePlay}
           isPlaying={isPlaying}
           isRecording={recorder.isRecording}
