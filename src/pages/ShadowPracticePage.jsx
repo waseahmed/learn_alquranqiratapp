@@ -438,6 +438,15 @@ export default function ShadowPracticePage() {
     loopWinRef.current = null
   }
 
+  function handleClearLoop() {
+    stopPlayback()
+    if (words.length) {
+      setLoopStart(0)
+      setLoopEnd(words.length - 1)
+    }
+    setLoopPick(null)
+  }
+
   function armLoopWindow(el, { persistent = false } = {}) {
     if (!el || !words.length) return null
     const d = el.duration
@@ -756,6 +765,18 @@ export default function ShadowPracticePage() {
       />
 
       <header className="shadow-practice-header">
+        <button
+          type="button"
+          className="shadow-practice-header-logo"
+          onClick={() => navigate('/practice')}
+          aria-label="Go to practice home"
+        >
+          <img
+            className="shadow-practice-header-logo-img"
+            src={`${import.meta.env.BASE_URL}aqqa-logo.png`}
+            alt=""
+          />
+        </button>
         <button type="button" className="btn ghost shadow-practice-back" onClick={() => navigate('/practice')}>
           ← Back
         </button>
@@ -821,7 +842,7 @@ export default function ShadowPracticePage() {
             onSelectWord={handleSelectLoopWord}
             onLoopCoach={handleLoopCoach}
             onLoopYou={handleLoopYou}
-            onClearLoop={stopPlayback}
+            onClearLoop={handleClearLoop}
             loopPlaying={loopPlayMode}
             isPlaying={isPlaying}
             durationSec={loopDurationHint}

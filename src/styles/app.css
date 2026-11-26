@@ -1345,8 +1345,17 @@ a.btn.primary {
     display: none;
   }
 
+  .top-bar--logo-left .top-bar-left {
+    display: flex;
+    flex-shrink: 0;
+  }
+
   .header-logo-btn {
     display: none;
+  }
+
+  .top-bar--logo-left .header-logo-btn {
+    display: inline-flex;
   }
 
   .top-heading {
@@ -2436,9 +2445,27 @@ a.btn.primary {
 .shadow-practice-header {
   display: flex;
   flex-wrap: wrap;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px 16px;
   margin-bottom: 18px;
+}
+
+.shadow-practice-header-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  cursor: pointer;
+}
+
+.shadow-practice-header-logo-img {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+  display: block;
 }
 
 .shadow-practice-back {
