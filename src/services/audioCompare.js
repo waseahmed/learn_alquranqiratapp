@@ -1,6 +1,6 @@
 const MAX_POINTS = 240
 
-function rmsEnvelope(channelData, points = MAX_POINTS) {
+export function rmsEnvelope(channelData, points = MAX_POINTS) {
   const len = channelData.length
   if (!len) return []
   const block = Math.max(1, Math.floor(len / points))

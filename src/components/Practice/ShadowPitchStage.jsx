@@ -2,12 +2,13 @@ import { useEffect, useRef } from 'react'
 
 const MIN_HZ = 70
 const MAX_HZ = 500
-const STEPS = 96
-const LEVELS = 8
+const PITCH_STEPS = 120
+const PAD_X = 24
+const PAD_Y = 28
 
 function resampleLinear(arr, n) {
   const len = arr.length
-  if (!len) return new Array(n).fill(0)
+  if (!len) return []
   if (len === 1) return new Array(n).fill(arr[0])
   const out = new Array(n)
   for (let i = 0; i < n; i += 1) {
@@ -20,75 +21,93 @@ function resampleLinear(arr, n) {
   return out
 }
 
-function quantizeSteps(hzSeries) {
-  return hzSeries.map((h) => {
-    if (!h || h <= 0) return null
-    const t = Math.max(0, Math.min(1, (h - MIN_HZ) / (MAX_HZ - MIN_HZ)))
-    return Math.round(t * (LEVELS - 1)) / (LEVELS - 1)
-  })
+function hzToLevel(h) {
+  if (!h || h <= 0) return null
+  const t = Math.max(0, Math.min(1, (h - MIN_HZ) / (MAX_HZ - MIN_HZ)))
+  return t
 }
 
-function drawSteppedContour(ctx, levels, { width, height, color, lineWidth = 3 }) {
-  if (!levels.length) return
-  const padX = 28
-  const padY = 22
+function drawMirrorWaveform(ctx, envelope, { width, height, playProgress, padX, padY }) {
   const innerW = width - padX * 2
   const innerH = height - padY * 2
-  const stepW = innerW / Math.max(1, levels.length - 1)
+  const midY = padY + innerH * 0.58
+  const ampH = innerH * 0.38
+  const n = envelope.length
+  if (!n) return
+
+  const stepX = innerW / Math.max(1, n - 1)
+  const playX = padX + playProgress * innerW
+
+  ctx.beginPath()
+  for (let i = 0; i < n; i += 1) {
+    const x = padX + i * stepX
+    const amp = envelope[i] * ampH
+    const y = midY - amp
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  for (let i = n - 1; i >= 0; i -= 1) {
+    const x = padX + i * stepX
+    const amp = envelope[i] * ampH
+    ctx.lineTo(x, midY + amp * 0.85)
+  }
+  ctx.closePath()
+  ctx.fillStyle = 'rgba(30, 96, 57, 0.12)'
+  ctx.fill()
+  ctx.strokeStyle = 'rgba(30, 96, 57, 0.45)'
+  ctx.lineWidth = 1.25
+  ctx.stroke()
+
+  if (playProgress > 0.002) {
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(padX, padY, playProgress * innerW, innerH)
+    ctx.clip()
+    ctx.beginPath()
+    for (let i = 0; i < n; i += 1) {
+      const x = padX + i * stepX
+      const amp = envelope[i] * ampH
+      const y = midY - amp
+      if (i === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    for (let i = n - 1; i >= 0; i -= 1) {
+      const x = padX + i * stepX
+      const amp = envelope[i] * ampH
+      ctx.lineTo(x, midY + amp * 0.85)
+    }
+    ctx.closePath()
+    ctx.fillStyle = 'rgba(30, 96, 57, 0.22)'
+    ctx.fill()
+    ctx.strokeStyle = 'rgba(30, 96, 57, 0.75)'
+    ctx.lineWidth = 1.5
+    ctx.stroke()
+    ctx.restore()
+  }
+
+}
+
+function drawPitchPath(ctx, hzSeries, { width, height, padX, padY, color, lineWidth }) {
+  const innerW = width - padX * 2
+  const innerH = height - padY * 2
+  const pitchTop = padY + 6
+  const pitchH = innerH * 0.42
+  const resampled = resampleLinear(hzSeries, PITCH_STEPS)
+  const stepX = innerW / Math.max(1, PITCH_STEPS - 1)
 
   ctx.strokeStyle = color
   ctx.lineWidth = lineWidth
   ctx.lineJoin = 'round'
   ctx.beginPath()
-
   let started = false
-  let lastX = padX
-  let lastY = null
-
-  for (let i = 0; i < levels.length; i += 1) {
-    const level = levels[i]
-    const x = padX + i * stepW
-    if (level == null) {
-      started = false
-      lastY = null
-      continue
-    }
-    const y = padY + innerH - level * innerH
-    if (!started) {
-      ctx.moveTo(x, y)
-      started = true
-      lastX = x
-      lastY = y
-    } else {
-      ctx.lineTo(x, lastY)
-      ctx.lineTo(x, y)
-      lastX = x
-      lastY = y
-    }
-  }
-  ctx.stroke()
-}
-
-function drawSmoothContour(ctx, levels, { width, height, color, lineWidth = 1.25 }) {
-  if (!levels.length) return
-  const padX = 28
-  const padY = 22
-  const innerW = width - padX * 2
-  const innerH = height - padY * 2
-  const stepW = innerW / Math.max(1, levels.length - 1)
-
-  ctx.strokeStyle = color
-  ctx.lineWidth = lineWidth
-  ctx.beginPath()
-  let started = false
-  for (let i = 0; i < levels.length; i += 1) {
-    const level = levels[i]
+  for (let i = 0; i < resampled.length; i += 1) {
+    const level = hzToLevel(resampled[i])
+    const x = padX + i * stepX
     if (level == null) {
       started = false
       continue
     }
-    const x = padX + i * stepW
-    const y = padY + innerH - level * innerH
+    const y = pitchTop + pitchH - level * pitchH
     if (!started) {
       ctx.moveTo(x, y)
       started = true
@@ -100,13 +119,17 @@ function drawSmoothContour(ctx, levels, { width, height, color, lineWidth = 1.25
 }
 
 /**
- * Dark-theme stepped pitch path (reference) with optional student overlay.
+ * Reciter waveform (amplitude), melody line (pitch), and synced playhead.
  */
 export default function ShadowPitchStage({
+  envelope = [],
   referenceHz = [],
   practiceHz = [],
+  playProgress = 0,
+  isPlaying = false,
   words = [],
   loading = false,
+  waveReady = false,
 }) {
   const canvasRef = useRef(null)
 
@@ -116,7 +139,7 @@ export default function ShadowPitchStage({
 
     const dpr = window.devicePixelRatio || 1
     const width = canvas.clientWidth || 720
-    const height = canvas.clientHeight || 280
+    const height = canvas.clientHeight || 300
     canvas.width = Math.floor(width * dpr)
     canvas.height = Math.floor(height * dpr)
     const ctx = canvas.getContext('2d')
@@ -127,71 +150,128 @@ export default function ShadowPitchStage({
     ctx.fillStyle = '#fbfdf9'
     ctx.fillRect(0, 0, width, height)
 
-    ctx.strokeStyle = 'rgba(30, 96, 57, 0.08)'
+    ctx.strokeStyle = 'rgba(30, 96, 57, 0.07)'
     ctx.lineWidth = 1
-    for (let row = 0; row <= LEVELS; row += 1) {
-      const y = 22 + ((height - 44) / LEVELS) * row
+    for (let i = 0; i <= 8; i += 1) {
+      const y = PAD_Y + ((height - PAD_Y * 2) / 8) * i
       ctx.beginPath()
-      ctx.moveTo(28, y)
-      ctx.lineTo(width - 28, y)
+      ctx.moveTo(PAD_X, y)
+      ctx.lineTo(width - PAD_X, y)
       ctx.stroke()
     }
 
-    const refLevels = quantizeSteps(resampleLinear(referenceHz, STEPS))
-    const practiceLevels =
-      practiceHz.length > 0 ? quantizeSteps(resampleLinear(practiceHz, STEPS)) : []
-
-    drawSmoothContour(ctx, refLevels, {
-      width,
-      height,
-      color: 'rgba(30, 96, 57, 0.25)',
-      lineWidth: 1.5,
-    })
-    drawSteppedContour(ctx, refLevels, {
-      width,
-      height,
-      color: 'rgba(30, 96, 57, 0.9)',
-      lineWidth: 3.5,
-    })
-
-    if (practiceLevels.length) {
-      drawSmoothContour(ctx, practiceLevels, {
+    if (waveReady && envelope.length) {
+      drawMirrorWaveform(ctx, envelope, {
         width,
         height,
-        color: 'rgba(201, 147, 52, 0.85)',
-        lineWidth: 2,
+        playProgress: isPlaying ? playProgress : playProgress,
+        padX: PAD_X,
+        padY: PAD_Y,
       })
+
+      drawPitchPath(ctx, referenceHz, {
+        width,
+        height,
+        padX: PAD_X,
+        padY: PAD_Y,
+        color: 'rgba(30, 96, 57, 0.35)',
+        lineWidth: 1.25,
+      })
+      drawPitchPath(ctx, referenceHz, {
+        width,
+        height,
+        padX: PAD_X,
+        padY: PAD_Y,
+        color: 'rgba(30, 96, 57, 0.92)',
+        lineWidth: 2.75,
+      })
+
+      if (practiceHz.length) {
+        drawPitchPath(ctx, practiceHz, {
+          width,
+          height,
+          padX: PAD_X,
+          padY: PAD_Y,
+          color: 'rgba(201, 147, 52, 0.9)',
+          lineWidth: 2,
+        })
+      }
+    } else if (!loading) {
+      ctx.fillStyle = 'rgba(51, 73, 44, 0.55)'
+      ctx.font = '15px system-ui, sans-serif'
+      ctx.textAlign = 'center'
+      ctx.fillText(
+        'Waveform not available yet — press ▶ Hear him to listen.',
+        width / 2,
+        height / 2 - 8,
+      )
+      ctx.font = '13px system-ui, sans-serif'
+      ctx.fillStyle = 'rgba(51, 73, 44, 0.4)'
+      ctx.fillText(
+        '(Enable CORS on the audio CDN for the full reciter waveform.)',
+        width / 2,
+        height / 2 + 16,
+      )
+      ctx.textAlign = 'left'
     }
 
-    ctx.fillStyle = 'rgba(30, 96, 57, 0.65)'
-    ctx.font = '600 11px system-ui, sans-serif'
-    ctx.fillText('home', 32, height - 8)
-    ctx.textAlign = 'right'
-    ctx.fillText('Reciter', width - 32, height - 8)
-    ctx.textAlign = 'left'
+    if (isPlaying || playProgress > 0) {
+      const innerW = width - PAD_X * 2
+      const playX = PAD_X + playProgress * innerW
+      ctx.strokeStyle = 'rgba(201, 147, 52, 0.95)'
+      ctx.lineWidth = 2
+      ctx.beginPath()
+      ctx.moveTo(playX, PAD_Y)
+      ctx.lineTo(playX, height - PAD_Y + 4)
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.arc(playX, PAD_Y - 2, 5, 0, Math.PI * 2)
+      ctx.fillStyle = '#c99334'
+      ctx.fill()
+    }
 
-    if (words.length > 1) {
-      const padX = 28
-      const innerW = width - padX * 2
+    if (words.length > 1 && waveReady) {
+      const innerW = width - PAD_X * 2
       const stepW = innerW / words.length
-      ctx.fillStyle = 'rgba(51, 73, 44, 0.45)'
-      ctx.font = '11px system-ui'
-      words.forEach((w, i) => {
-        const cx = padX + stepW * i + stepW / 2
-        ctx.textAlign = 'center'
-        ctx.fillText(w, cx, 14)
-      })
+      ctx.strokeStyle = 'rgba(30, 96, 57, 0.15)'
+      ctx.setLineDash([3, 4])
+      for (let i = 1; i < words.length; i += 1) {
+        const x = PAD_X + stepW * i
+        ctx.beginPath()
+        ctx.moveTo(x, PAD_Y)
+        ctx.lineTo(x, height - PAD_Y)
+        ctx.stroke()
+      }
+      ctx.setLineDash([])
     }
-  }, [referenceHz, practiceHz, words, loading])
+
+    ctx.fillStyle = 'rgba(30, 96, 57, 0.55)'
+    ctx.font = '600 11px system-ui, sans-serif'
+    ctx.fillText('Melody', PAD_X, 16)
+    ctx.textAlign = 'right'
+    ctx.fillText('Amplitude', width - PAD_X, height - 6)
+    ctx.textAlign = 'left'
+  }, [
+    envelope,
+    referenceHz,
+    practiceHz,
+    playProgress,
+    isPlaying,
+    words,
+    loading,
+    waveReady,
+  ])
 
   return (
     <div className="shadow-pitch-stage">
       <canvas
         ref={canvasRef}
         className="shadow-pitch-canvas"
-        aria-label="Pitch contour for shadow practice"
+        aria-label="Reciter waveform and melody guide"
       />
-      {loading && <p className="shadow-pitch-loading">Building waveform from reciter…</p>}
+      {loading && (
+        <p className="shadow-pitch-loading">Scanning recitation audio for waveform…</p>
+      )}
     </div>
   )
 }

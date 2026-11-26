@@ -1891,7 +1891,7 @@ a.btn.primary {
 .shadow-pitch-canvas {
   display: block;
   width: 100%;
-  height: min(42vh, 320px);
+  height: min(44vh, 340px);
   border-radius: 14px;
   border: 1px solid var(--line);
   background: #fff;

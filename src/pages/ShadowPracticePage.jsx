@@ -5,8 +5,8 @@ import ShadowPitchStage from '../components/Practice/ShadowPitchStage'
 import { surahs } from '../data/quranData'
 import { qaris, getQarisForSurah } from '../data/qaris'
 import { getAyahAudioUrl } from '../services/audioService'
-import { analyzeRecitationFromUrl, syntheticPitchGuide } from '../services/recitationAudioLoader'
-import { decodeAudioBlob } from '../services/audioCompare'
+import { analyzeRecitationFromUrl } from '../services/recitationAudioLoader'
+import { decodeAudioBlob, rmsEnvelope } from '../services/audioCompare'
 import { computeF0Contour } from '../services/recitationAnalysis'
 import { useRecorder } from '../hooks/useRecorder'
 
@@ -35,12 +35,17 @@ export default function ShadowPracticePage() {
   const [qariKey, setQariKey] = useState(
     allowedKeys.includes(initialQari) ? initialQari : allowedKeys[0] || initialQari,
   )
+  const [envelope, setEnvelope] = useState([])
   const [refHz, setRefHz] = useState([])
   const [practiceHz, setPracticeHz] = useState([])
+  const [waveReady, setWaveReady] = useState(false)
   const [loadError, setLoadError] = useState('')
   const [guideNote, setGuideNote] = useState('')
   const [loadingRef, setLoadingRef] = useState(true)
+  const [playProgress, setPlayProgress] = useState(0)
+  const [isPlaying, setIsPlaying] = useState(false)
   const hearRef = useRef(null)
+  const rafRef = useRef(null)
 
   const currentSurah = surahs[String(surah)]
   const arabic = currentSurah?.ayahs?.[String(ayah)] || ''
@@ -57,30 +62,85 @@ export default function ShadowPracticePage() {
     setLoadingRef(true)
     setLoadError('')
     setGuideNote('')
+    setEnvelope([])
     setRefHz([])
     setPracticeHz([])
+    setWaveReady(false)
+    setPlayProgress(0)
 
     const url = getAyahAudioUrl(qariKey, surah, ayah)
     try {
-      const result = await analyzeRecitationFromUrl(url, { wordCount: words.length || 3 })
-      setRefHz(result.hz)
-      if (result.approximate) {
+      const result = await analyzeRecitationFromUrl(url)
+      if (result.ready) {
+        setEnvelope(result.envelope)
+        setRefHz(result.pitchHz)
+        setWaveReady(true)
+        if (result.method === 'capture') {
+          setGuideNote('Waveform built from this reciter’s audio (silent scan). Press Hear him to follow along.')
+        }
+      } else {
         setGuideNote(
-          'Showing a rhythm guide for this ayah (exact reciter waveform is blocked by cross-origin rules). Hearing and recording still work.',
+          'Playback works, but the visual guide needs CORS on the audio server. You can still hear and record.',
         )
       }
     } catch (err) {
-      setLoadError(err.message || 'Could not build shadow guide from this reciter.')
-      setRefHz(syntheticPitchGuide(3, words.length || 3))
-      setGuideNote('Using a simple rhythm guide. Tap Hear him to listen to the reciter.')
+      setLoadError(err.message || 'Could not analyze this recitation.')
     } finally {
       setLoadingRef(false)
     }
-  }, [qariKey, surah, ayah, words.length])
+  }, [qariKey, surah, ayah])
 
   useEffect(() => {
     loadReference()
   }, [loadReference])
+
+  useEffect(() => {
+    const el = hearRef.current
+    if (!el) return undefined
+
+    function syncProgress() {
+      const d = el.duration
+      if (!Number.isFinite(d) || d <= 0) return
+      setPlayProgress(Math.min(1, Math.max(0, el.currentTime / d)))
+    }
+
+    function tick() {
+      syncProgress()
+      if (!el.paused) {
+        rafRef.current = window.requestAnimationFrame(tick)
+      }
+    }
+
+    const onPlay = () => {
+      setIsPlaying(true)
+      window.cancelAnimationFrame(rafRef.current || 0)
+      rafRef.current = window.requestAnimationFrame(tick)
+    }
+    const onPause = () => {
+      setIsPlaying(false)
+      window.cancelAnimationFrame(rafRef.current || 0)
+      syncProgress()
+    }
+    const onEnded = () => {
+      setIsPlaying(false)
+      window.cancelAnimationFrame(rafRef.current || 0)
+      setPlayProgress(1)
+      window.setTimeout(() => setPlayProgress(0), 400)
+    }
+
+    el.addEventListener('play', onPlay)
+    el.addEventListener('pause', onPause)
+    el.addEventListener('ended', onEnded)
+    el.addEventListener('timeupdate', syncProgress)
+
+    return () => {
+      el.removeEventListener('play', onPlay)
+      el.removeEventListener('pause', onPause)
+      el.removeEventListener('ended', onEnded)
+      el.removeEventListener('timeupdate', syncProgress)
+      window.cancelAnimationFrame(rafRef.current || 0)
+    }
+  }, [qariKey, surah, ayah])
 
   useEffect(() => {
     if (!recorder.recordingUrl) return undefined
@@ -94,6 +154,9 @@ export default function ShadowPracticePage() {
         if (cancelled) return
         const f0 = computeF0Contour(analysis.channelData, analysis.sampleRate)
         setPracticeHz(f0.hz)
+        if (!waveReady) {
+          setEnvelope(rmsEnvelope(analysis.channelData, 320))
+        }
       } catch {
         if (!cancelled) setLoadError('Could not analyze your recording.')
       }
@@ -102,7 +165,7 @@ export default function ShadowPracticePage() {
     return () => {
       cancelled = true
     }
-  }, [recorder.recordingUrl])
+  }, [recorder.recordingUrl, waveReady])
 
   function handleQariChange(nextKey) {
     setQariKey(nextKey)
@@ -111,13 +174,24 @@ export default function ShadowPracticePage() {
     setSearchParams(next, { replace: true })
   }
 
-  function handleHearHim() {
+  async function handleHearHim() {
     if (!hearRef.current) return
     const url = getAyahAudioUrl(qariKey, surah, ayah)
-    if (hearRef.current.src !== url) hearRef.current.src = url
-    hearRef.current.playbackRate = 1
-    hearRef.current.currentTime = 0
-    hearRef.current.play().catch(() => {})
+    const el = hearRef.current
+    if (el.src !== url && !el.src.endsWith(url.split('/').slice(-3).join('/'))) {
+      el.src = url
+    }
+    el.playbackRate = 1
+    el.currentTime = 0
+    setPlayProgress(0)
+    try {
+      await el.play()
+    } catch {
+      setLoadError('Could not play audio. Check your connection.')
+    }
+    if (!waveReady && !loadingRef) {
+      loadReference()
+    }
   }
 
   const verseLabel = currentSurah
@@ -126,7 +200,7 @@ export default function ShadowPracticePage() {
 
   return (
     <div className="shadow-practice-page practice-page">
-      <audio ref={hearRef} preload="metadata" className="visually-hidden" aria-hidden />
+      <audio ref={hearRef} preload="auto" className="visually-hidden" aria-hidden />
 
       <Header title="Shadow practice" subtitle="Listen · imitate · record" />
 
@@ -180,21 +254,15 @@ export default function ShadowPracticePage() {
       </div>
 
       <ShadowPitchStage
+        envelope={envelope}
         referenceHz={refHz}
         practiceHz={practiceHz}
+        playProgress={playProgress}
+        isPlaying={isPlaying}
         words={words}
         loading={loadingRef}
+        waveReady={waveReady}
       />
-
-      {words.length > 0 && (
-        <div className="shadow-practice-phonetic" aria-hidden>
-          {words.map((w, i) => (
-            <span key={`${w}-${i}`} className="shadow-practice-syl">
-              {w}
-            </span>
-          ))}
-        </div>
-      )}
 
       {guideNote && (
         <p className="shadow-practice-note" role="status">
@@ -211,24 +279,19 @@ export default function ShadowPracticePage() {
       <footer className="shadow-practice-footer">
         <p className="shadow-practice-hint">
           <span className="shadow-practice-hint-dot" aria-hidden />
-          Hear the reciter, then press Record and imitate the melody and rhythm of this ayah.
+          Hear the reciter and watch the playhead move. Then record and match the green melody line.
         </p>
         <div className="shadow-practice-actions">
           <button
             type="button"
             className="btn primary shadow-practice-record"
             onClick={recorder.toggle}
-            disabled={false}
             aria-pressed={recorder.isRecording}
           >
             <span className="shadow-practice-record-icon" aria-hidden />
             {recorder.isRecording ? 'Stop' : 'Record'}
           </button>
-          <button
-            type="button"
-            className="btn shadow-practice-hear"
-            onClick={handleHearHim}
-          >
+          <button type="button" className="btn shadow-practice-hear" onClick={handleHearHim}>
             ▶ Hear him
           </button>
         </div>
@@ -239,7 +302,7 @@ export default function ShadowPracticePage() {
         )}
         {practiceHz.length > 0 && !recorder.isRecording && (
           <p className="shadow-practice-compare-note" role="status">
-            Your pitch trace is shown in gold over the reciter&apos;s green path.
+            Your recording is shown in gold over the reciter&apos;s green melody line.
           </p>
         )}
       </footer>

@@ -1,7 +1,9 @@
-import { decodeAudioBlob } from './audioCompare'
+import { decodeAudioBlob, rmsEnvelope } from './audioCompare'
 import { computeF0Contour } from './recitationAnalysis'
 
-function waitAudioEvent(el, eventName, timeoutMs = 20000) {
+const WAVE_POINTS = 320
+
+function waitAudioEvent(el, eventName, timeoutMs = 25000) {
   return new Promise((resolve, reject) => {
     const timer = window.setTimeout(() => {
       reject(new Error('Audio load timed out'))
@@ -37,31 +39,26 @@ function signalEnergy(signal) {
   return signal.length ? sum / signal.length : 0
 }
 
-export function syntheticPitchGuide(durationSec, wordCount = 3) {
-  const steps = 96
-  const segments = Math.max(1, wordCount)
-  const hz = []
-  for (let i = 0; i < steps; i += 1) {
-    const t = i / Math.max(1, steps - 1)
-    const seg = Math.floor(t * segments) % segments
-    const base = 155 + seg * 28
-    const melody = Math.sin(t * Math.PI * segments * 1.6) * 45
-    const tail = Math.cos(t * 8) * 12
-    hz.push(Math.max(90, base + melody + tail))
+function analysisFromPcm(channelData, sampleRate, duration) {
+  const envelope = rmsEnvelope(channelData, WAVE_POINTS)
+  const f0 = computeF0Contour(channelData, sampleRate)
+  return {
+    envelope,
+    pitchHz: f0.hz,
+    duration: duration || channelData.length / Math.max(1, sampleRate),
+    ready: envelope.some((v) => v > 0.02),
   }
-  void durationSec
-  return hz
 }
 
-async function getAudioDurationSec(url) {
+export async function getAudioDurationSec(url) {
   const audio = new Audio()
   audio.preload = 'metadata'
   audio.src = url
   await waitAudioEvent(audio, 'loadedmetadata')
-  return Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 3
+  return Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0
 }
 
-async function capturePitchViaWebAudio(url) {
+async function capturePcmViaWebAudio(url) {
   const audio = new Audio()
   audio.crossOrigin = 'anonymous'
   audio.preload = 'auto'
@@ -97,42 +94,49 @@ async function capturePitchViaWebAudio(url) {
 
   const combined = concatFloat32(chunks)
   if (signalEnergy(combined) < 1e-8) {
-    throw new Error('No audio signal captured (CORS may block analysis)')
+    throw new Error('No audio signal captured')
   }
-  return computeF0Contour(combined, ctx.sampleRate).hz
+  return { channelData: combined, sampleRate: ctx.sampleRate, duration: audio.duration }
 }
 
 /**
- * Build a pitch contour for shadow practice without requiring fetch() CORS.
+ * Real reciter waveform + pitch from URL (fetch or muted Web Audio capture).
  */
-export async function analyzeRecitationFromUrl(url, { wordCount = 3 } = {}) {
+export async function analyzeRecitationFromUrl(url) {
   try {
     const res = await fetch(url, { mode: 'cors', credentials: 'omit' })
     if (res.ok) {
       const blob = await res.blob()
       const analysis = await decodeAudioBlob(blob)
-      const f0 = computeF0Contour(analysis.channelData, analysis.sampleRate)
-      if (f0.hz.some((h) => h > 0)) {
-        return { hz: f0.hz, approximate: false, method: 'fetch' }
+      const payload = analysisFromPcm(
+        analysis.channelData,
+        analysis.sampleRate,
+        analysis.duration,
+      )
+      if (payload.ready) {
+        return { ...payload, method: 'fetch' }
       }
     }
   } catch {
-    /* cross-origin fetch often blocked; try playback capture */
+    /* try capture */
   }
 
   try {
-    const hz = await capturePitchViaWebAudio(url)
-    if (hz.some((h) => h > 0)) {
-      return { hz, approximate: false, method: 'playback' }
+    const { channelData, sampleRate, duration } = await capturePcmViaWebAudio(url)
+    const payload = analysisFromPcm(channelData, sampleRate, duration)
+    if (payload.ready) {
+      return { ...payload, method: 'capture' }
     }
   } catch {
-    /* fall through */
+    /* no waveform without CORS / Web Audio */
   }
 
-  const duration = await getAudioDurationSec(url)
+  const duration = (await getAudioDurationSec(url)) || 0
   return {
-    hz: syntheticPitchGuide(duration, wordCount),
-    approximate: true,
-    method: 'guide',
+    envelope: [],
+    pitchHz: [],
+    duration,
+    ready: false,
+    method: 'none',
   }
 }
