@@ -47,6 +47,8 @@ function analysisFromPcm(channelData, sampleRate, duration) {
     pitchHz: f0.hz,
     duration: duration || channelData.length / Math.max(1, sampleRate),
     ready: envelope.some((v) => v > 0.02),
+    channelData,
+    sampleRate,
   }
 }
 

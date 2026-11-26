@@ -130,6 +130,7 @@ export default function ShadowPitchStage({
   words = [],
   loading = false,
   waveReady = false,
+  rangeHighlight = null,
 }) {
   const canvasRef = useRef(null)
 
@@ -230,6 +231,17 @@ export default function ShadowPitchStage({
       ctx.fill()
     }
 
+    if (rangeHighlight && waveReady) {
+      const innerW = width - PAD_X * 2
+      const x0 = PAD_X + rangeHighlight.startFrac * innerW
+      const x1 = PAD_X + rangeHighlight.endFrac * innerW
+      ctx.fillStyle = 'rgba(201, 147, 52, 0.12)'
+      ctx.fillRect(x0, PAD_Y, Math.max(2, x1 - x0), height - PAD_Y * 2)
+      ctx.strokeStyle = 'rgba(201, 147, 52, 0.55)'
+      ctx.lineWidth = 1.5
+      ctx.strokeRect(x0 + 0.5, PAD_Y + 0.5, Math.max(2, x1 - x0) - 1, height - PAD_Y * 2 - 1)
+    }
+
     if (words.length > 1 && waveReady) {
       const innerW = width - PAD_X * 2
       const stepW = innerW / words.length
@@ -260,6 +272,7 @@ export default function ShadowPitchStage({
     words,
     loading,
     waveReady,
+    rangeHighlight,
   ])
 
   return (

@@ -2,12 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import Header from '../components/Layout/Header'
 import ShadowPitchStage from '../components/Practice/ShadowPitchStage'
+import ShadowCoachRail from '../components/Practice/ShadowCoachRail'
+import ShadowWordLoopBar from '../components/Practice/ShadowWordLoopBar'
 import { surahs } from '../data/quranData'
 import { qaris, getQarisForSurah } from '../data/qaris'
 import { getAyahAudioUrl } from '../services/audioService'
 import { analyzeRecitationFromUrl } from '../services/recitationAudioLoader'
-import { decodeAudioBlob, rmsEnvelope } from '../services/audioCompare'
-import { computeF0Contour } from '../services/recitationAnalysis'
+import { compareEnvelopes, decodeAudioBlob, rmsEnvelope } from '../services/audioCompare'
+import { buildRecitationAnalysis, computeF0Contour } from '../services/recitationAnalysis'
+import {
+  sliceAudioAnalysis,
+  wordTimeRange,
+} from '../services/shadowPracticeUtils'
 import { useRecorder } from '../hooks/useRecorder'
 
 function wordsFromAyah(arabic) {
@@ -44,8 +50,22 @@ export default function ShadowPracticePage() {
   const [loadingRef, setLoadingRef] = useState(true)
   const [playProgress, setPlayProgress] = useState(0)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [activePlay, setActivePlay] = useState(null)
+  const [playbackRate, setPlaybackRate] = useState(1)
+  const [refAnalysis, setRefAnalysis] = useState(null)
+  const [studentAnalysis, setStudentAnalysis] = useState(null)
+  const [refDuration, setRefDuration] = useState(0)
+  const [qariWaveByKey, setQariWaveByKey] = useState({})
+  const [loopStart, setLoopStart] = useState(0)
+  const [loopEnd, setLoopEnd] = useState(0)
+  const [loopPick, setLoopPick] = useState(null)
+  const [loopEnabled, setLoopEnabled] = useState(false)
+  const [loopPlayMode, setLoopPlayMode] = useState(null)
   const hearRef = useRef(null)
+  const practiceAudioRef = useRef(null)
   const rafRef = useRef(null)
+  const abHandlersRef = useRef({ onRefEnd: null, onYouEnd: null })
+  const loopWinRef = useRef(null)
 
   const currentSurah = surahs[String(surah)]
   const arabic = currentSurah?.ayahs?.[String(ayah)] || ''
@@ -58,6 +78,83 @@ export default function ShadowPracticePage() {
     [allowedKeys],
   )
 
+  const phraseScope = useMemo(() => {
+    if (!words.length) return null
+  const fullAyah = loopStart === 0 && loopEnd >= words.length - 1
+    return { fullAyah, label: fullAyah ? 'full ayah' : `phrase · words ${loopStart + 1}–${loopEnd + 1}` }
+  }, [loopStart, loopEnd, words.length])
+
+  const rangeHighlight = useMemo(() => {
+    if (!words.length) return null
+    const frac = wordTimeRange(loopStart, loopEnd, words.length, 1)
+    if (phraseScope?.fullAyah) return null
+    return { startFrac: frac.startFrac, endFrac: frac.endFrac }
+  }, [loopStart, loopEnd, words.length, phraseScope?.fullAyah])
+
+  const comparison = useMemo(() => {
+    if (!refAnalysis || !studentAnalysis) return null
+    let refCmp = refAnalysis
+    let studentCmp = studentAnalysis
+    if (phraseScope && !phraseScope.fullAyah) {
+      const frac = wordTimeRange(loopStart, loopEnd, words.length, refAnalysis.duration)
+      refCmp = sliceAudioAnalysis(refAnalysis, frac.startFrac, frac.endFrac)
+      studentCmp = sliceAudioAnalysis(studentAnalysis, frac.startFrac, frac.endFrac)
+    }
+    if (!refCmp || !studentCmp) return null
+    return compareEnvelopes(refCmp, studentCmp)
+  }, [refAnalysis, studentAnalysis, phraseScope, loopStart, loopEnd, words.length])
+
+  const recitationAnalysis = useMemo(() => {
+    if (!refAnalysis?.channelData || !studentAnalysis?.channelData) return null
+    let refBuf = refAnalysis
+    let studentBuf = studentAnalysis
+    if (phraseScope && !phraseScope.fullAyah) {
+      const frac = wordTimeRange(loopStart, loopEnd, words.length, refAnalysis.duration)
+      refBuf = sliceAudioAnalysis(refAnalysis, frac.startFrac, frac.endFrac)
+      studentBuf = sliceAudioAnalysis(studentAnalysis, frac.startFrac, frac.endFrac)
+    }
+    if (!refBuf?.channelData || !studentBuf?.channelData) return null
+    return buildRecitationAnalysis(refBuf, studentBuf)
+  }, [refAnalysis, studentAnalysis, phraseScope, loopStart, loopEnd, words.length])
+
+  useEffect(() => {
+    if (!words.length) return
+    setLoopStart(0)
+    setLoopEnd(words.length - 1)
+    setLoopPick(null)
+  }, [surah, ayah, words.length])
+
+  useEffect(() => {
+    let cancelled = false
+    setQariWaveByKey((prev) => {
+      const next = { ...prev }
+      for (const key of allowedKeys) {
+        if (!next[key]) next[key] = { loading: true, envelope: [], ready: false }
+      }
+      return next
+    })
+
+    allowedKeys.forEach((key) => {
+      const url = getAyahAudioUrl(key, surah, ayah)
+      analyzeRecitationFromUrl(url).then((result) => {
+        if (cancelled) return
+        setQariWaveByKey((prev) => ({
+          ...prev,
+          [key]: {
+            loading: false,
+            envelope: result.envelope || [],
+            ready: Boolean(result.ready),
+            duration: result.duration || 0,
+          },
+        }))
+      })
+    })
+
+    return () => {
+      cancelled = true
+    }
+  }, [allowedKeys, surah, ayah])
+
   const loadReference = useCallback(async () => {
     setLoadingRef(true)
     setLoadError('')
@@ -67,14 +164,25 @@ export default function ShadowPracticePage() {
     setPracticeHz([])
     setWaveReady(false)
     setPlayProgress(0)
+    setRefAnalysis(null)
+    setRefDuration(0)
 
     const url = getAyahAudioUrl(qariKey, surah, ayah)
     try {
       const result = await analyzeRecitationFromUrl(url)
+      if (result.duration) setRefDuration(result.duration)
       if (result.ready) {
         setEnvelope(result.envelope)
         setRefHz(result.pitchHz)
         setWaveReady(true)
+        if (result.channelData) {
+          setRefAnalysis({
+            duration: result.duration,
+            sampleRate: result.sampleRate,
+            channelData: result.channelData,
+            envelope: result.envelope,
+          })
+        }
         if (result.method === 'capture') {
           setGuideNote('Waveform built from this reciter’s audio (silent scan). Press Hear him to follow along.')
         }
@@ -94,19 +202,46 @@ export default function ShadowPracticePage() {
     loadReference()
   }, [loadReference])
 
+  const progressSource = useCallback(() => {
+    if (activePlay === 'you' || activePlay === 'ab-you' || activePlay === 'loop-you') {
+      return practiceAudioRef.current
+    }
+    return hearRef.current
+  }, [activePlay])
+
   useEffect(() => {
-    const el = hearRef.current
-    if (!el) return undefined
+    if (hearRef.current) hearRef.current.playbackRate = playbackRate
+    if (practiceAudioRef.current) practiceAudioRef.current.playbackRate = playbackRate
+  }, [playbackRate, qariKey, surah, ayah])
+
+  useEffect(() => {
+    const refEl = hearRef.current
+    const youEl = practiceAudioRef.current
+    if (!refEl) return undefined
+
+    function enforceLoop(el) {
+      const win = loopWinRef.current
+      if (!win || !el || !Number.isFinite(el.duration)) return
+      if (el.currentTime >= win.end - 0.05) {
+        if (win.persistent || loopEnabled) {
+          el.currentTime = win.start
+        }
+      }
+    }
 
     function syncProgress() {
+      const el = progressSource()
+      if (!el) return
       const d = el.duration
       if (!Number.isFinite(d) || d <= 0) return
+      enforceLoop(el)
       setPlayProgress(Math.min(1, Math.max(0, el.currentTime / d)))
     }
 
     function tick() {
       syncProgress()
-      if (!el.paused) {
+      const el = progressSource()
+      if (el && !el.paused) {
         rafRef.current = window.requestAnimationFrame(tick)
       }
     }
@@ -117,30 +252,50 @@ export default function ShadowPracticePage() {
       rafRef.current = window.requestAnimationFrame(tick)
     }
     const onPause = () => {
-      setIsPlaying(false)
-      window.cancelAnimationFrame(rafRef.current || 0)
+      const refPlaying = refEl && !refEl.paused
+      const youPlaying = youEl && !youEl.paused
+      if (!refPlaying && !youPlaying) {
+        setIsPlaying(false)
+        window.cancelAnimationFrame(rafRef.current || 0)
+      }
       syncProgress()
     }
     const onEnded = () => {
+      const refPlaying = refEl && !refEl.paused && !refEl.ended
+      const youPlaying = youEl && !youEl.paused && !youEl.ended
+      if (refPlaying || youPlaying) return
       setIsPlaying(false)
       window.cancelAnimationFrame(rafRef.current || 0)
       setPlayProgress(1)
-      window.setTimeout(() => setPlayProgress(0), 400)
+      window.setTimeout(() => {
+        setPlayProgress(0)
+        setActivePlay(null)
+        setLoopPlayMode(null)
+        loopWinRef.current = null
+      }, 400)
     }
 
-    el.addEventListener('play', onPlay)
-    el.addEventListener('pause', onPause)
-    el.addEventListener('ended', onEnded)
-    el.addEventListener('timeupdate', syncProgress)
+    refEl.addEventListener('play', onPlay)
+    refEl.addEventListener('pause', onPause)
+    refEl.addEventListener('ended', onEnded)
+    refEl.addEventListener('timeupdate', syncProgress)
+    youEl?.addEventListener('play', onPlay)
+    youEl?.addEventListener('pause', onPause)
+    youEl?.addEventListener('ended', onEnded)
+    youEl?.addEventListener('timeupdate', syncProgress)
 
     return () => {
-      el.removeEventListener('play', onPlay)
-      el.removeEventListener('pause', onPause)
-      el.removeEventListener('ended', onEnded)
-      el.removeEventListener('timeupdate', syncProgress)
+      refEl.removeEventListener('play', onPlay)
+      refEl.removeEventListener('pause', onPause)
+      refEl.removeEventListener('ended', onEnded)
+      refEl.removeEventListener('timeupdate', syncProgress)
+      youEl?.removeEventListener('play', onPlay)
+      youEl?.removeEventListener('pause', onPause)
+      youEl?.removeEventListener('ended', onEnded)
+      youEl?.removeEventListener('timeupdate', syncProgress)
       window.cancelAnimationFrame(rafRef.current || 0)
     }
-  }, [qariKey, surah, ayah])
+  }, [qariKey, surah, ayah, progressSource, loopEnabled])
 
   useEffect(() => {
     if (!recorder.recordingUrl) return undefined
@@ -154,6 +309,7 @@ export default function ShadowPracticePage() {
         if (cancelled) return
         const f0 = computeF0Contour(analysis.channelData, analysis.sampleRate)
         setPracticeHz(f0.hz)
+        setStudentAnalysis(analysis)
         if (!waveReady) {
           setEnvelope(rmsEnvelope(analysis.channelData, 320))
         }
@@ -174,25 +330,200 @@ export default function ShadowPracticePage() {
     setSearchParams(next, { replace: true })
   }
 
-  async function handleHearHim() {
-    if (!hearRef.current) return
-    const url = getAyahAudioUrl(qariKey, surah, ayah)
-    const el = hearRef.current
-    if (el.src !== url && !el.src.endsWith(url.split('/').slice(-3).join('/'))) {
-      el.src = url
-    }
-    el.playbackRate = 1
-    el.currentTime = 0
+  function detachAbHandlers() {
+    const ref = hearRef.current
+    const you = practiceAudioRef.current
+    const { onRefEnd, onYouEnd } = abHandlersRef.current
+    if (ref && onRefEnd) ref.removeEventListener('ended', onRefEnd)
+    if (you && onYouEnd) you.removeEventListener('ended', onYouEnd)
+    abHandlersRef.current = { onRefEnd: null, onYouEnd: null }
+  }
+
+  function stopPlayback() {
+    detachAbHandlers()
+    hearRef.current?.pause()
+    practiceAudioRef.current?.pause()
+    setActivePlay(null)
+    setIsPlaying(false)
     setPlayProgress(0)
+    setLoopPlayMode(null)
+    loopWinRef.current = null
+  }
+
+  function armLoopWindow(el, { persistent = false } = {}) {
+    if (!el || !words.length) return null
+    const d = el.duration
+    if (!Number.isFinite(d) || d <= 0) return null
+    const range = wordTimeRange(loopStart, loopEnd, words.length, d)
+    const active = persistent || loopEnabled
+    loopWinRef.current = active ? { ...range, persistent } : null
+    if (active) el.currentTime = range.start
+    return range
+  }
+
+  function handleSelectLoopWord(index) {
+    if (loopPick == null) {
+      setLoopPick(index)
+      setLoopStart(index)
+      setLoopEnd(index)
+      return
+    }
+    const start = Math.min(loopPick, index)
+    const end = Math.max(loopPick, index)
+    setLoopStart(start)
+    setLoopEnd(end)
+    setLoopPick(null)
+  }
+
+  function ensureRefSrc(key = qariKey) {
+    const el = hearRef.current
+    if (!el) return
+    el.src = getAyahAudioUrl(key, surah, ayah)
+  }
+
+  function ensurePracticeSrc() {
+    const el = practiceAudioRef.current
+    if (!el || !recorder.recordingUrl) return false
+    if (el.src !== recorder.recordingUrl) el.src = recorder.recordingUrl
+    return true
+  }
+
+  async function handleHearQari(key) {
+    if (!hearRef.current) return
+    stopPlayback()
+    ensureRefSrc(key)
+    const el = hearRef.current
+    el.playbackRate = playbackRate
+    armLoopWindow(el, { persistent: Boolean(loopPlayMode === 'coach') })
+    if (!loopWinRef.current) el.currentTime = 0
+    setActivePlay(`ref-${key}`)
     try {
       await el.play()
     } catch {
       setLoadError('Could not play audio. Check your connection.')
     }
-    if (!waveReady && !loadingRef) {
+    if (key === qariKey && !waveReady && !loadingRef) {
       loadReference()
     }
   }
+
+  async function handlePlayYours() {
+    if (!ensurePracticeSrc()) return
+    stopPlayback()
+    const el = practiceAudioRef.current
+    armLoopWindow(el, { persistent: Boolean(loopPlayMode === 'you') })
+    if (!loopWinRef.current) el.currentTime = 0
+    setActivePlay('you')
+    try {
+      await el.play()
+    } catch {
+      setLoadError('Could not play your recording.')
+    }
+  }
+
+  async function handlePlayBoth() {
+    if (!ensurePracticeSrc()) return
+    stopPlayback()
+    ensureRefSrc()
+    const ref = hearRef.current
+    const you = practiceAudioRef.current
+    const win = armLoopWindow(ref, { persistent: false })
+    if (win) you.currentTime = win.start
+    else {
+      ref.currentTime = 0
+      you.currentTime = 0
+    }
+    setActivePlay('both')
+    try {
+      await Promise.all([ref.play(), you.play()])
+    } catch {
+      setLoadError('Could not play both tracks.')
+    }
+  }
+
+  async function handleCompareAb() {
+    if (!ensurePracticeSrc()) return
+    stopPlayback()
+    ensureRefSrc()
+    const ref = hearRef.current
+    const you = practiceAudioRef.current
+    loopWinRef.current = null
+    ref.currentTime = 0
+    you.currentTime = 0
+    setActivePlay(`ab-ref-${qariKey}`)
+
+    const onRefEnd = () => {
+      ref.removeEventListener('ended', onRefEnd)
+      you.currentTime = 0
+      setActivePlay('ab-you')
+      setPlayProgress(0)
+      you.play().catch(() => {})
+    }
+    const onYouEnd = () => {
+      you.removeEventListener('ended', onYouEnd)
+      setActivePlay(null)
+      setPlayProgress(0)
+    }
+    abHandlersRef.current = { onRefEnd, onYouEnd }
+    ref.addEventListener('ended', onRefEnd)
+    you.addEventListener('ended', onYouEnd)
+    try {
+      await ref.play()
+    } catch {
+      setLoadError('Could not start A → B compare.')
+    }
+  }
+
+  async function handleLoopCoach() {
+    if (!hearRef.current) return
+    stopPlayback()
+    ensureRefSrc()
+    const el = hearRef.current
+    setLoopPlayMode('coach')
+    if (el.readyState < 1) {
+      await new Promise((resolve) => {
+        el.addEventListener('loadedmetadata', resolve, { once: true })
+      })
+    }
+    armLoopWindow(el, { persistent: true })
+    setActivePlay('loop-coach')
+    try {
+      await el.play()
+    } catch {
+      setLoadError('Could not loop coach audio.')
+    }
+  }
+
+  async function handleLoopYou() {
+    if (!ensurePracticeSrc()) return
+    stopPlayback()
+    const el = practiceAudioRef.current
+    setLoopPlayMode('you')
+    armLoopWindow(el, { persistent: true })
+    setActivePlay('loop-you')
+    try {
+      await el.play()
+    } catch {
+      setLoadError('Could not loop your recording.')
+    }
+  }
+
+  const miniPlayProgress = useCallback(
+    (key) => {
+      if (
+        activePlay === `ref-${key}` ||
+        activePlay === `ab-ref-${key}` ||
+        (activePlay === 'loop-coach' && key === qariKey) ||
+        (activePlay === 'both' && key === qariKey)
+      ) {
+        return playProgress
+      }
+      return 0
+    },
+    [activePlay, playProgress, qariKey],
+  )
+
+  const loopDurationHint = refDuration || refAnalysis?.duration || 0
 
   const verseLabel = currentSurah
     ? `${currentSurah.name_en} · verse ${ayah}`
@@ -201,111 +532,106 @@ export default function ShadowPracticePage() {
   return (
     <div className="shadow-practice-page practice-page">
       <audio ref={hearRef} preload="auto" className="visually-hidden" aria-hidden />
+      <audio ref={practiceAudioRef} preload="auto" className="visually-hidden" aria-hidden />
 
-      <Header title="Shadow practice" subtitle="Listen · imitate · record" />
+      <Header title="Shadow practice" subtitle="Coaching · self-coaching · compare" />
 
       <header className="shadow-practice-header">
         <button type="button" className="btn ghost shadow-practice-back" onClick={() => navigate('/practice')}>
           ← Back
         </button>
         <div className="shadow-practice-header-main">
-          <label className="shadow-practice-qari-label" htmlFor="shadow-qari">
-            Qari
-          </label>
-          <select
-            id="shadow-qari"
-            className="shadow-practice-qari-select"
-            value={qariKey}
-            onChange={(e) => handleQariChange(e.target.value)}
-          >
-            {selectableQaris.map((q) => (
-              <option key={q.key} value={q.key}>
-                {q.name}
-              </option>
-            ))}
-          </select>
-          <p className="shadow-practice-verse-meta">
+          <p className="shadow-practice-verse-meta shadow-practice-verse-meta--lead">
             {verseLabel}
+            {qari?.name ? ` · Guide: ${qari.name}` : ''}
             {qari?.style ? ` · ${qari.style}` : ''}
           </p>
         </div>
         <span className="shadow-practice-beta">BETA</span>
       </header>
 
-      <section className="reader shadow-practice-reader">
-        <div className="reader-head">
-          <div className="reader-head-title">{currentSurah?.name_ar}</div>
-          <div className="ayah-meta">{verseLabel}</div>
-        </div>
-        <div className="arabic shadow-practice-arabic-block" dir="rtl" lang="ar">
-          {arabic}
-        </div>
-      </section>
+      <div className="shadow-coach-layout">
+        <div className="shadow-coach-main">
+          <section className="reader shadow-practice-reader">
+            <div className="reader-head">
+              <div className="reader-head-title">{currentSurah?.name_ar}</div>
+              <div className="ayah-meta">{verseLabel}</div>
+            </div>
+            <div className="arabic shadow-practice-arabic-block" dir="rtl" lang="ar">
+              {arabic}
+            </div>
+          </section>
 
-      <div className="shadow-practice-arabic-wrap" dir="rtl" lang="ar">
-        <div className="shadow-practice-word-dots">
-          {words.map((w) => (
-            <span key={w} className="shadow-practice-word-dot">
-              <span className="shadow-practice-dot" />
-              <span className="shadow-practice-word-chip">{w}</span>
-            </span>
-          ))}
+          <ShadowWordLoopBar
+            words={words}
+            loopStart={loopStart}
+            loopEnd={loopEnd}
+            loopEnabled={loopEnabled}
+            onLoopEnabledChange={setLoopEnabled}
+            onSelectWord={handleSelectLoopWord}
+            onLoopCoach={handleLoopCoach}
+            onLoopYou={handleLoopYou}
+            loopPlaying={loopPlayMode}
+            durationSec={loopDurationHint}
+            canLoopYou={Boolean(recorder.recordingUrl)}
+          />
+
+          <ShadowPitchStage
+            envelope={envelope}
+            referenceHz={refHz}
+            practiceHz={practiceHz}
+            playProgress={playProgress}
+            isPlaying={isPlaying}
+            words={words}
+            loading={loadingRef}
+            waveReady={waveReady}
+            rangeHighlight={rangeHighlight}
+          />
+
+          {guideNote && (
+            <p className="shadow-practice-note" role="status">
+              {guideNote}
+            </p>
+          )}
+
+          {loadError && (
+            <p className="shadow-practice-error" role="alert">
+              {loadError}
+            </p>
+          )}
+
+          {practiceHz.length > 0 && !recorder.isRecording && (
+            <p className="shadow-practice-compare-note" role="status">
+              Gold = your pitch · Green = focused coach · Use the rail to hear other qaris without changing the guide.
+            </p>
+          )}
         </div>
+
+        <ShadowCoachRail
+          coaches={selectableQaris}
+          focusQariKey={qariKey}
+          onFocusQari={handleQariChange}
+          onHearQari={handleHearQari}
+          activePlay={activePlay}
+          isPlaying={isPlaying}
+          isRecording={recorder.isRecording}
+          hasRecording={Boolean(recorder.recordingUrl)}
+          playbackRate={playbackRate}
+          onPlaybackRateChange={setPlaybackRate}
+          onRecordToggle={recorder.toggle}
+          onPlayYours={handlePlayYours}
+          onPlayBoth={handlePlayBoth}
+          onCompareAb={handleCompareAb}
+          onStop={stopPlayback}
+          recordingError={recorder.error}
+          qariPreviews={qariWaveByKey}
+          miniPlayProgress={miniPlayProgress}
+          comparison={comparison}
+          recitationAnalysis={recitationAnalysis}
+          coachName={qari?.name || 'Coach'}
+          comparisonScope={phraseScope?.label}
+        />
       </div>
-
-      <ShadowPitchStage
-        envelope={envelope}
-        referenceHz={refHz}
-        practiceHz={practiceHz}
-        playProgress={playProgress}
-        isPlaying={isPlaying}
-        words={words}
-        loading={loadingRef}
-        waveReady={waveReady}
-      />
-
-      {guideNote && (
-        <p className="shadow-practice-note" role="status">
-          {guideNote}
-        </p>
-      )}
-
-      {loadError && (
-        <p className="shadow-practice-error" role="alert">
-          {loadError}
-        </p>
-      )}
-
-      <footer className="shadow-practice-footer">
-        <p className="shadow-practice-hint">
-          <span className="shadow-practice-hint-dot" aria-hidden />
-          Hear the reciter and watch the playhead move. Then record and match the green melody line.
-        </p>
-        <div className="shadow-practice-actions">
-          <button
-            type="button"
-            className="btn primary shadow-practice-record"
-            onClick={recorder.toggle}
-            aria-pressed={recorder.isRecording}
-          >
-            <span className="shadow-practice-record-icon" aria-hidden />
-            {recorder.isRecording ? 'Stop' : 'Record'}
-          </button>
-          <button type="button" className="btn shadow-practice-hear" onClick={handleHearHim}>
-            ▶ Hear him
-          </button>
-        </div>
-        {recorder.error && (
-          <p className="shadow-practice-error" role="alert">
-            {recorder.error}
-          </p>
-        )}
-        {practiceHz.length > 0 && !recorder.isRecording && (
-          <p className="shadow-practice-compare-note" role="status">
-            Your recording is shown in gold over the reciter&apos;s green melody line.
-          </p>
-        )}
-      </footer>
     </div>
   )
 }
