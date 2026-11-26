@@ -19,6 +19,11 @@ import {
 } from '../services/shadowPracticeUtils'
 import ShadowAyahWords from '../components/Practice/ShadowAyahWords'
 import { useRecorder } from '../hooks/useRecorder'
+import {
+  fetchAyahWordTimings,
+  timingsMatchWordCount,
+  wordStartFractionsFromTimings,
+} from '../services/quranComWordTimings'
 
 export default function ShadowPracticePage() {
   const navigate = useNavigate()
@@ -60,6 +65,8 @@ export default function ShadowPracticePage() {
   const [loopPick, setLoopPick] = useState(null)
   const [loopEnabled, setLoopEnabled] = useState(false)
   const [loopPlayMode, setLoopPlayMode] = useState(null)
+  const [qcomTimings, setQcomTimings] = useState(null)
+  const [wordTimingNote, setWordTimingNote] = useState('')
   const hearRef = useRef(null)
   const practiceAudioRef = useRef(null)
   const rafRef = useRef(null)
@@ -77,17 +84,39 @@ export default function ShadowPracticePage() {
     [allowedKeys],
   )
 
-  const wordStartFractions = useMemo(
-    () =>
-      computeWordStartFractions({
-        displayTokens,
-        envelope,
-        channelData: refAnalysis?.channelData,
-        sampleRate: refAnalysis?.sampleRate,
-        durationSec: refDuration || refAnalysis?.duration || 0,
-      }),
-    [displayTokens, envelope, refAnalysis, refDuration],
-  )
+  useEffect(() => {
+    let cancelled = false
+    setQcomTimings(null)
+    setWordTimingNote('')
+    fetchAyahWordTimings(qariKey, surah, ayah).then((t) => {
+      if (cancelled) return
+      if (!t) return
+      if (timingsMatchWordCount(t, words.length)) {
+        setQcomTimings(t)
+        setWordTimingNote('Word highlight uses Quran.com official timing for this reciter.')
+      } else {
+        setWordTimingNote(
+          'Official timing word count differs from this text — using audio-based estimate.',
+        )
+      }
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [qariKey, surah, ayah, words.length])
+
+  const wordStartFractions = useMemo(() => {
+    if (qcomTimings && timingsMatchWordCount(qcomTimings, words.length)) {
+      return wordStartFractionsFromTimings(qcomTimings)
+    }
+    return computeWordStartFractions({
+      displayTokens,
+      envelope,
+      channelData: refAnalysis?.channelData,
+      sampleRate: refAnalysis?.sampleRate,
+      durationSec: refDuration || refAnalysis?.duration || 0,
+    })
+  }, [qcomTimings, words.length, displayTokens, envelope, refAnalysis, refDuration])
 
   const phraseScope = useMemo(() => {
     if (!words.length) return null
@@ -646,6 +675,12 @@ export default function ShadowPracticePage() {
             activeWordIndex={speakingWordIndex}
             wordStartFractions={wordStartFractions}
           />
+
+          {wordTimingNote && (
+            <p className="shadow-practice-note shadow-practice-note--timing" role="status">
+              {wordTimingNote}
+            </p>
+          )}
 
           {guideNote && (
             <p className="shadow-practice-note" role="status">
