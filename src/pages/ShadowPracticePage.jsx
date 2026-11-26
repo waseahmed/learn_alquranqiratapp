@@ -12,16 +12,12 @@ import { compareEnvelopes, decodeAudioBlob, displayEnvelope } from '../services/
 import { buildRecitationAnalysis, computeF0Contour } from '../services/recitationAnalysis'
 import {
   activeWordIndex,
+  parseAyahWords,
   sliceAudioAnalysis,
   wordTimeRange,
 } from '../services/shadowPracticeUtils'
 import ShadowAyahWords from '../components/Practice/ShadowAyahWords'
 import { useRecorder } from '../hooks/useRecorder'
-
-function wordsFromAyah(arabic) {
-  if (!arabic) return []
-  return arabic.trim().split(/\s+/).filter(Boolean)
-}
 
 export default function ShadowPracticePage() {
   const navigate = useNavigate()
@@ -71,7 +67,7 @@ export default function ShadowPracticePage() {
 
   const currentSurah = surahs[String(surah)]
   const arabic = currentSurah?.ayahs?.[String(ayah)] || ''
-  const words = useMemo(() => wordsFromAyah(arabic), [arabic])
+  const { words, displayTokens } = useMemo(() => parseAyahWords(arabic), [arabic])
   const qari = qaris.find((q) => q.key === qariKey)
   const recorder = useRecorder()
 
@@ -591,7 +587,7 @@ export default function ShadowPracticePage() {
               <div className="ayah-meta">{verseLabel}</div>
             </div>
             <ShadowAyahWords
-              words={words}
+              displayTokens={displayTokens}
               activeIndex={speakingWordIndex}
               className="shadow-practice-arabic-block"
             />

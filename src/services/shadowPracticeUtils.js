@@ -1,5 +1,41 @@
 import { rmsEnvelope } from './audioCompare'
 
+/** Arabic letters (spoken syllables); excludes pause-only Quranic marks. */
+const HAS_ARABIC_LETTER =
+  /[\u0621-\u064A\u0671-\u06D3\u06EE\u06EF\u06FA-\u06FF\u0750-\u077F\u08A0-\u08FF]/u
+
+/** Token with no letters — typically ۛ وقف marks, sajdah, rub el hizb, etc. */
+const MARKS_ONLY =
+  /^[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u06DF-\u06E9\u06EA-\u06ED\u200C-\u200F\u0640]*$/u
+
+export function isSpokenWordToken(token) {
+  if (!token) return false
+  if (HAS_ARABIC_LETTER.test(token)) return true
+  if (MARKS_ONLY.test(token)) return false
+  return true
+}
+
+/**
+ * Split ayah into spoken words (for timing/highlight) vs display tokens (words + pause marks).
+ */
+export function parseAyahWords(arabic) {
+  if (!arabic) return { words: [], displayTokens: [] }
+  const raw = arabic.trim().split(/\s+/).filter(Boolean)
+  const words = []
+  const displayTokens = []
+  let index = 0
+  for (const text of raw) {
+    if (isSpokenWordToken(text)) {
+      words.push(text)
+      displayTokens.push({ type: 'word', text, index })
+      index += 1
+    } else {
+      displayTokens.push({ type: 'mark', text })
+    }
+  }
+  return { words, displayTokens }
+}
+
 /** Which word is active at normalized playback progress (0–1), equal slots per word. */
 export function activeWordIndex(progress, wordCount) {
   if (!wordCount || !Number.isFinite(progress) || progress < 0) return -1

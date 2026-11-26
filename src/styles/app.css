@@ -2187,6 +2187,15 @@ a.btn.primary {
   font-weight: 600;
 }
 
+.shadow-ayah-mark {
+  display: inline-block;
+  padding: 0 0.12em;
+  font-size: 0.82em;
+  opacity: 0.55;
+  user-select: none;
+  pointer-events: none;
+}
+
 .shadow-word-loop-actions {
   display: flex;
   flex-wrap: wrap;
