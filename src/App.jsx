@@ -4,6 +4,7 @@ import { AuthLoader } from './components/Auth/AuthLoader'
 import AppLayout from './components/Layout/AppLayout'
 import LoginPage from './pages/LoginPage'
 import PracticePage from './pages/PracticePage.jsx'
+import ShadowPracticePage from './pages/ShadowPracticePage.jsx'
 import HowToImitatePage from './pages/HowToImitatePage.jsx'
 import CommonMistakesPage from './pages/CommonMistakesPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
@@ -59,6 +60,7 @@ export default function App() {
       >
         <Route index element={<Navigate to="/practice" replace />} />
         <Route path="practice" element={<PracticePage />} />
+        <Route path="practice/shadow" element={<ShadowPracticePage />} />
         <Route path="profile" element={<ProfilePage />} />
         <Route path="how-to-imitate" element={<HowToImitatePage />} />
         <Route path="common-mistakes" element={<CommonMistakesPage />} />

@@ -1785,6 +1785,262 @@ a.btn.primary {
   fill: var(--ink);
 }
 
+/* —— Shadow practice (dedicated page) —— */
+.shadow-practice-page {
+  margin: -15px -18px 0;
+  min-height: calc(100dvh - 42px);
+  padding: 18px 20px 28px;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgba(232, 198, 106, 0.08), transparent 55%),
+    linear-gradient(168deg, #12182e 0%, #1a2140 45%, #0f1428 100%);
+  color: #ece8df;
+  box-sizing: border-box;
+}
+
+.shadow-practice-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 16px;
+  margin-bottom: 18px;
+}
+
+.shadow-practice-back {
+  color: #d8d2c4;
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.shadow-practice-header-main {
+  flex: 1 1 240px;
+  min-width: 0;
+}
+
+.shadow-practice-qari-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  opacity: 0.65;
+  margin-bottom: 4px;
+}
+
+.shadow-practice-qari-select {
+  width: 100%;
+  max-width: 420px;
+  padding: 10px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(232, 198, 106, 0.35);
+  background: rgba(0, 0, 0, 0.35);
+  color: #faf6ee;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.shadow-practice-verse-meta {
+  margin: 8px 0 0;
+  font-size: 13px;
+  opacity: 0.78;
+}
+
+.shadow-practice-beta {
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #1a1428;
+  background: linear-gradient(135deg, #e8c66a, #d4a84a);
+}
+
+.shadow-practice-arabic-wrap {
+  text-align: center;
+  margin-bottom: 14px;
+  padding: 12px 10px;
+}
+
+.shadow-practice-arabic {
+  margin: 0 0 12px;
+  font-size: clamp(26px, 4vw, 40px);
+  line-height: 1.65;
+  color: #faf6ee;
+}
+
+.shadow-practice-word-dots {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 14px 20px;
+}
+
+.shadow-practice-word-dot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.shadow-practice-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e8c66a;
+  box-shadow: 0 0 10px rgba(232, 198, 106, 0.65);
+}
+
+.shadow-practice-word-chip {
+  font-size: 14px;
+  opacity: 0.7;
+}
+
+.shadow-pitch-stage {
+  position: relative;
+  margin-bottom: 10px;
+}
+
+.shadow-pitch-canvas {
+  display: block;
+  width: 100%;
+  height: min(42vh, 320px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.shadow-pitch-loading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  font-size: 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 16px;
+}
+
+.shadow-practice-phonetic {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  opacity: 0.55;
+  direction: rtl;
+}
+
+.shadow-practice-syl {
+  padding: 2px 6px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.shadow-practice-error {
+  text-align: center;
+  color: #ffb4a8;
+  font-size: 14px;
+}
+
+.shadow-practice-footer {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.shadow-practice-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 0 0 16px;
+  font-size: 14px;
+  opacity: 0.88;
+  max-width: 560px;
+}
+
+.shadow-practice-hint-dot {
+  flex: 0 0 8px;
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.shadow-practice-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.shadow-practice-record {
+  flex: 1 1 200px;
+  min-height: 52px;
+  font-size: 17px;
+  font-weight: 700;
+  border: none;
+  background: linear-gradient(135deg, #e8c66a 0%, #c9a43d 100%);
+  color: #1a1428;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border-radius: 999px;
+}
+
+.shadow-practice-record-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #1a1428;
+}
+
+.shadow-practice-record[aria-pressed='true'] {
+  background: linear-gradient(135deg, #e86b6b, #c94a4a);
+  color: #fff;
+}
+
+.shadow-practice-record[aria-pressed='true'] .shadow-practice-record-icon {
+  background: #fff;
+  border-radius: 3px;
+  width: 12px;
+  height: 12px;
+}
+
+.shadow-practice-hear {
+  flex: 0 1 160px;
+  min-height: 52px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: #ece8df;
+  font-weight: 600;
+}
+
+.shadow-practice-compare-note {
+  margin: 12px 0 0;
+  font-size: 13px;
+  opacity: 0.75;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  .shadow-practice-page {
+    margin: -12px -14px 0;
+    padding: 14px;
+  }
+}
+
 /* Recitation analysis: pitch contour */
 .pitch-chart-wrap {
   width: 100%;

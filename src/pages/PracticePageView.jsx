@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Header from '../components/Layout/Header'
 import QariSelector from '../components/Qari/QariSelector'
 import QariCard from '../components/Qari/QariCard'
@@ -26,6 +27,7 @@ export default function PracticePageView({
   onNavigate,
   onMenuToggle,
 }) {
+  const navigate = useNavigate()
   const {
     qariOrder,
     setQariOrder,
@@ -62,7 +64,6 @@ export default function PracticePageView({
     isPlayingSequence,
     isUnavailable,
     markUnavailable,
-    playOnce,
     playRepeats,
     playSequence,
     registerAudio,
@@ -294,30 +295,18 @@ export default function PracticePageView({
     scheduleAutoContinue(result, { mode: 'single', qariKey: key, rate })
   }
 
-  async function runShadow(key) {
+  function openShadowPractice() {
+    const key = primaryQariKey
     if (!key || isUnavailable(key, surah, ayah)) return
     stopEverything()
-    shadowStopRef.current = false
-    setShadowActive(true)
-    setShadowLabel('Listen')
-
-    while (!shadowStopRef.current) {
-      setShadowLabel('Listen')
-      // playOnce clears the stop flag from stopEverything() so Listen can start
-      const result = await playOnce(key, surah, ayah, 1)
-      if (shadowStopRef.current || result.reason === 'stopped' || !result.ok) break
-
-      for (let i = 3; i >= 1; i -= 1) {
-        if (shadowStopRef.current) break
-        setShadowLabel(`Your Turn\n${i}`)
-        await new Promise((r) => setTimeout(r, 1000))
-      }
-      if (shadowStopRef.current) break
-      setShadowLabel('Listen again')
-    }
-
-    setShadowActive(false)
-    setShadowLabel('Ready')
+    const keys = selectedList.map((q) => q.key).join(',')
+    const params = new URLSearchParams({
+      surah: String(surah),
+      ayah: String(ayah),
+      qari: key,
+      qaris: keys,
+    })
+    navigate(`/practice/shadow?${params.toString()}`)
   }
 
   function prevAyah() {
@@ -443,7 +432,7 @@ export default function PracticePageView({
           <PracticeControls
             onReplay={() => handleReplay()}
             onSlowToggle={(rate) => handleSlowToggle(primaryQariKey, rate)}
-            onStartShadow={() => runShadow(primaryQariKey)}
+            onStartShadow={openShadowPractice}
             onToggleRecord={recorder.toggle}
             isRecording={recorder.isRecording}
             slowRate={slowRate}
