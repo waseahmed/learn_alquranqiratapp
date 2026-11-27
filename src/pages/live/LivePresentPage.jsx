@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import LiveQuizLogo from '../../components/live/LiveQuizLogo'
 import { fetchLivePresentSnapshot } from '../../services/liveQuiz'
 import { formatResponseMs } from '../../utils/liveQuizTiming'
@@ -69,6 +70,14 @@ function PodiumNode({ place, entry, animate }) {
 }
 
 export default function LivePresentPage() {
+  const [searchParams] = useSearchParams()
+  const focusGroupId = useMemo(() => {
+    const raw = searchParams.get('group')
+    if (!raw) return null
+    const n = Number(raw)
+    return Number.isFinite(n) && n > 0 ? n : null
+  }, [searchParams])
+
   const [snapshot, setSnapshot] = useState(null)
   const [error, setError] = useState('')
   const [now, setNow] = useState(() => Date.now())
@@ -77,7 +86,7 @@ export default function LivePresentPage() {
   useEffect(() => {
     let active = true
     async function load() {
-      const { data, error: err } = await fetchLivePresentSnapshot()
+      const { data, error: err } = await fetchLivePresentSnapshot(focusGroupId)
       if (!active) return
       if (err) setError(err.message)
       else setSnapshot(data)
@@ -88,7 +97,7 @@ export default function LivePresentPage() {
       active = false
       window.clearInterval(id)
     }
-  }, [])
+  }, [focusGroupId])
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), 250)
@@ -97,7 +106,8 @@ export default function LivePresentPage() {
 
   const podium = snapshot?.last_podium
   const ctx = snapshot?.remaining_context
-  const title = podium?.question_title || ctx?.title
+  const title =
+    podium?.group_name || podium?.question_title || ctx?.title
   const roundId = snapshot?.round_id || podium?.round_id
   const phase = snapshot?.phase ?? 'waiting'
   const isLiveQuestion = phase === 'question' && Boolean(roundId)
@@ -160,7 +170,11 @@ export default function LivePresentPage() {
             </>
           ) : (
             <span className="live-present-pill live-present-pill--idle">
-              {title ? 'Round complete' : 'Stand by'}
+              {podium?.group_name
+                ? `Group results · ${podium.group_name}`
+                : title
+                  ? 'Round complete'
+                  : 'Stand by'}
             </span>
           )}
         </div>

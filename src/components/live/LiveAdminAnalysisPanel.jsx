@@ -10,6 +10,14 @@ function roleLabel(role) {
   return role === 'father' ? 'Father' : 'Mother'
 }
 
+function openGroupPresentation(groupId) {
+  const base = import.meta.env.BASE_URL || '/'
+  const groupQuery =
+    groupId != null && Number(groupId) > 0 ? `?group=${encodeURIComponent(String(groupId))}` : ''
+  const url = `${window.location.origin}${base}#/live/admin/present${groupQuery}`
+  window.open(url, 'aqqa-live-present', 'noopener,noreferrer,width=1280,height=800')
+}
+
 export default function LiveAdminAnalysisPanel({ pin }) {
   const [data, setData] = useState(null)
   const [error, setError] = useState('')
@@ -77,6 +85,15 @@ export default function LiveAdminAnalysisPanel({ pin }) {
           ))}
         </select>
         <span className="live-muted live-analysis-group-hint">Showing: {groupLabel}</span>
+        {groupId !== '' ? (
+          <button
+            type="button"
+            className="btn primary live-analysis-present-btn"
+            onClick={() => openGroupPresentation(Number(groupId))}
+          >
+            Open presentation (this group)
+          </button>
+        ) : null}
       </div>
 
       {loading && <p className="live-muted">Loading analysis…</p>}

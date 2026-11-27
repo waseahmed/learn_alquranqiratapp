@@ -176,9 +176,26 @@ export async function adminSetActiveGroup(pin, groupId) {
   return { data, error }
 }
 
-export async function fetchLivePresentSnapshot() {
+export async function fetchLivePresentSnapshot(focusGroupId = null) {
   if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
-  const { data, error } = await supabase.rpc('live_quiz_present_snapshot')
+  const { data, error } = await supabase.rpc('live_quiz_present_snapshot', {
+    p_focus_group_id: focusGroupId ?? null,
+  })
+  return { data, error }
+}
+
+export async function adminFinalizeRound(pin) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { error } = await supabase.rpc('live_quiz_admin_finalize_round', { p_pin: pin })
+  return { data: null, error }
+}
+
+export async function adminShowGroupResults(pin, groupId) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured') }
+  const { data, error } = await supabase.rpc('live_quiz_admin_show_group_results', {
+    p_pin: pin,
+    p_group_id: groupId,
+  })
   return { data, error }
 }
 

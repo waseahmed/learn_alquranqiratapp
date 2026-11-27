@@ -13,7 +13,9 @@ import {
   adminLiveQuizStats,
   adminRemoveAllParticipants,
   adminRemoveParticipant,
+  adminFinalizeRound,
   adminSetActiveGroup,
+  adminShowGroupResults,
   adminShowOption,
   adminShowWait,
   subscribeLiveQuizVotes,
@@ -185,6 +187,7 @@ export default function LiveAdminPage() {
   const [sentQuestionNums, setSentQuestionNums] = useState(readSentQuestionSet)
   const [sendRowsRevision, setSendRowsRevision] = useState(0)
   const lastFreshRoundRef = useRef(null)
+  const autoAdvanceRoundRef = useRef(null)
 
   const [activeGroupId, setActiveGroupId] = useState(readActiveGroupId)
 
@@ -376,10 +379,26 @@ export default function LiveAdminPage() {
     }
   }
 
-  function openPresentationWindow() {
+  function openPresentationWindow(groupId = activeGroupId) {
     const base = import.meta.env.BASE_URL || '/'
-    const url = `${window.location.origin}${base}#/live/admin/present`
+    const groupQuery =
+      groupId != null && Number(groupId) > 0 ? `?group=${encodeURIComponent(String(groupId))}` : ''
+    const url = `${window.location.origin}${base}#/live/admin/present${groupQuery}`
     window.open(url, 'aqqa-live-present', 'noopener,noreferrer,width=1280,height=800')
+  }
+
+  async function showGroupResults(groupId = activeGroupId) {
+    if (!groupId || groupId < 1) return
+    setActionError('')
+    setBusy(true)
+    const { error } = await adminShowGroupResults(pin, groupId)
+    setBusy(false)
+    if (error) {
+      setActionError(error.message || 'Could not show group results.')
+      return
+    }
+    openPresentationWindow(groupId)
+    refreshStats()
   }
 
   function markQuestionSent(questionNumber) {
@@ -493,6 +512,42 @@ export default function LiveAdminPage() {
   const activeGroupLabel = activeGroup
     ? `${activeGroup.name} · ${activeGroup.mode === 'competition' ? 'Competition' : 'Poll'}`
     : null
+
+  useEffect(() => {
+    if (!pinUnlocked || !activeGroup?.auto_send_questions) return undefined
+    if (display.displayPhase !== 'timed_out' || !display.questionNumber || !display.roundId) {
+      return undefined
+    }
+    if (autoAdvanceRoundRef.current === display.roundId) return undefined
+
+    const currentIdx = sendableQuestions.findIndex((q) => q.number === display.questionNumber)
+    if (currentIdx < 0) return undefined
+
+    const gapMs = (Number(activeGroup.auto_send_gap_seconds) || 5) * 1000
+    const isLast = currentIdx >= sendableQuestions.length - 1
+
+    const timer = window.setTimeout(async () => {
+      autoAdvanceRoundRef.current = display.roundId
+      await adminFinalizeRound(pin)
+      if (isLast) {
+        await showGroupResults(activeGroupId)
+        return
+      }
+      const next = sendableQuestions[currentIdx + 1]
+      if (next) await sendQuestion(next.number)
+    }, gapMs)
+
+    return () => window.clearTimeout(timer)
+  }, [
+    pinUnlocked,
+    activeGroup,
+    activeGroupId,
+    display.displayPhase,
+    display.questionNumber,
+    display.roundId,
+    sendableQuestions,
+    pin,
+  ])
 
   function handleSectionChange(next) {
     setSection(next)
@@ -654,8 +709,17 @@ export default function LiveAdminPage() {
                 </select>
                 <button
                   type="button"
+                  className="btn ghost live-present-results"
+                  onClick={() => showGroupResults(activeGroupId)}
+                  disabled={busy || !activeGroupId}
+                  title="Show saved results for the selected group on the presentation screen"
+                >
+                  Group results
+                </button>
+                <button
+                  type="button"
                   className="btn primary live-present-open"
-                  onClick={openPresentationWindow}
+                  onClick={() => openPresentationWindow(activeGroupId)}
                 >
                   Presentation screen
                 </button>
@@ -720,9 +784,25 @@ export default function LiveAdminPage() {
                   >
                     End round — show “wait for next” to everyone
                   </button>
+                  {activeGroup?.auto_send_questions && sendableQuestions.length > 0 && (
+                    <p className="live-admin-auto-hint" role="status">
+                      Auto-send is on for <strong>{activeGroupName}</strong> (
+                      {activeGroup.auto_send_gap_seconds || 5}s between questions). After the last
+                      question, group results open on the presentation screen automatically.
+                    </p>
+                  )}
+                  {display.sessionProgress?.total > 0 && (
+                    <p className="live-admin-progress-hint" role="status">
+                      Group progress: <strong>{display.sessionProgress.completed}</strong> of{' '}
+                      <strong>{display.sessionProgress.total}</strong> questions done
+                      {display.sessionProgress.pending > 0
+                        ? ` · ${display.sessionProgress.pending} pending`
+                        : ' · complete'}
+                    </p>
+                  )}
                   <p className="live-muted live-present-hint">
-                    For competition groups, scores are calculated when you end the round. Use
-                    Presentation screen for the leaderboard.
+                    Use <strong>Group results</strong> or <strong>Presentation screen</strong> for the
+                    hosting group selected above.
                   </p>
                 </div>
               )}

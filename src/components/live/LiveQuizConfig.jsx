@@ -59,6 +59,8 @@ export default function LiveQuizConfig({
         sort_order: g.sort_order ?? 0,
         show_questions_on_parents: g.show_questions_on_parents !== false,
         show_group_intro_flash: g.show_group_intro_flash !== false,
+        auto_send_questions: Boolean(g.auto_send_questions),
+        auto_send_gap_seconds: Number(g.auto_send_gap_seconds) || 5,
       })),
     )
   }, [groupsProp])
@@ -112,6 +114,8 @@ export default function LiveQuizConfig({
       sort_order: idx,
       show_questions_on_parents: g.show_questions_on_parents !== false,
       show_group_intro_flash: g.show_group_intro_flash !== false,
+      auto_send_questions: Boolean(g.auto_send_questions),
+      auto_send_gap_seconds: Number(g.auto_send_gap_seconds) || 5,
     }))
 
     const modeMap = new Map(groupsToSave.map((g) => [g.id, g.mode]))
@@ -162,6 +166,8 @@ export default function LiveQuizConfig({
             sort_order: nextGroups.length,
             show_questions_on_parents: d.show_questions_on_parents !== false,
             show_group_intro_flash: d.show_group_intro_flash !== false,
+            auto_send_questions: Boolean(d.auto_send_questions),
+            auto_send_gap_seconds: Number(d.auto_send_gap_seconds) || 5,
           },
         ]
       } else {
@@ -173,6 +179,8 @@ export default function LiveQuizConfig({
                 mode: d.mode,
                 show_questions_on_parents: d.show_questions_on_parents !== false,
                 show_group_intro_flash: d.show_group_intro_flash !== false,
+                auto_send_questions: Boolean(d.auto_send_questions),
+                auto_send_gap_seconds: Number(d.auto_send_gap_seconds) || 5,
               }
             : g,
         )
@@ -318,6 +326,8 @@ export default function LiveQuizConfig({
         mode: 'poll',
         show_questions_on_parents: true,
         show_group_intro_flash: true,
+        auto_send_questions: true,
+        auto_send_gap_seconds: 5,
       },
     })
   }
@@ -332,6 +342,8 @@ export default function LiveQuizConfig({
         mode: g.mode,
         show_questions_on_parents: g.show_questions_on_parents !== false,
         show_group_intro_flash: g.show_group_intro_flash !== false,
+        auto_send_questions: Boolean(g.auto_send_questions),
+        auto_send_gap_seconds: Number(g.auto_send_gap_seconds) || 5,
       },
     })
   }
@@ -440,6 +452,11 @@ export default function LiveQuizConfig({
                       <li>Group intro flash</li>
                     ) : (
                       <li>No intro flash</li>
+                    )}
+                    {g.auto_send_questions ? (
+                      <li>Auto-send · {g.auto_send_gap_seconds || 5}s gap</li>
+                    ) : (
+                      <li>Manual send only</li>
                     )}
                   </ul>
                   <div className="live-group-card-actions">
@@ -692,6 +709,45 @@ export default function LiveQuizConfig({
                 />
                 Show animated intro flash with group name when hosting starts
               </label>
+            </fieldset>
+            <fieldset className="live-drawer-checks">
+              <legend className="live-drawer-checks-legend">Hosting automation</legend>
+              <label className="live-drawer-check">
+                <input
+                  type="checkbox"
+                  checked={Boolean(groupDrawer.draft.auto_send_questions)}
+                  onChange={(e) =>
+                    setGroupDrawer((prev) => ({
+                      ...prev,
+                      draft: { ...prev.draft, auto_send_questions: e.target.checked },
+                    }))
+                  }
+                  disabled={disabled || saveBusy}
+                />
+                Auto-send questions in order after each round (5s gap by default)
+              </label>
+              {groupDrawer.draft.auto_send_questions ? (
+                <label htmlFor="drawer-group-gap">Seconds between questions</label>
+              ) : null}
+              {groupDrawer.draft.auto_send_questions ? (
+                <input
+                  id="drawer-group-gap"
+                  type="number"
+                  min={3}
+                  max={60}
+                  value={groupDrawer.draft.auto_send_gap_seconds ?? 5}
+                  onChange={(e) =>
+                    setGroupDrawer((prev) => ({
+                      ...prev,
+                      draft: {
+                        ...prev.draft,
+                        auto_send_gap_seconds: Number(e.target.value) || 5,
+                      },
+                    }))
+                  }
+                  disabled={disabled || saveBusy}
+                />
+              ) : null}
             </fieldset>
           </div>
         )}

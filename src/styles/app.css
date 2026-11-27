@@ -3500,6 +3500,58 @@ a.btn.primary {
   margin-top: 3px;
 }
 
+.live-admin-auto-hint,
+.live-admin-progress-hint {
+  margin: 10px 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #d7e4ce;
+  background: #f4f9f1;
+  font-size: 13px;
+}
+
+.live-present-results {
+  white-space: nowrap;
+}
+
+.live-analysis-present-btn {
+  margin-left: auto;
+}
+
+.live-session-progress {
+  margin: 0 0 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #d4b56a;
+  background: #fffaf0;
+}
+
+.live-session-progress-label {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+}
+
+.live-session-progress-track {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(30, 96, 57, 0.12);
+  overflow: hidden;
+}
+
+.live-session-progress-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--green), var(--gold));
+  transition: width 0.35s ease;
+}
+
+.live-panel--finale {
+  border-color: #d4b56a;
+  background: linear-gradient(180deg, #fff9eb 0%, #fff 55%);
+}
+
 .live-panel--watch {
   text-align: center;
   border-color: #d4b56a;

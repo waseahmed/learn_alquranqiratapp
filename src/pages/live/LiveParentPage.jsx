@@ -51,6 +51,8 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
     roundId,
     activeGroupId,
     groupIntroToken,
+    sessionProgress,
+    groupFinale,
     remainingSec,
     timerSeconds,
     loadError,
@@ -211,10 +213,49 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
         <strong>{participant.kidName}</strong> ({roleLabel(participant.parentRole)})
       </p>
 
-      {displayPhase === 'waiting' && (
+      {sessionProgress?.total > 0 && displayPhase !== 'waiting' && (
+        <div className="live-session-progress" role="status">
+          <p className="live-session-progress-label">
+            Question {sessionProgress.completed} of {sessionProgress.total}
+            {sessionProgress.pending > 0 ? ` · ${sessionProgress.pending} left` : ' · last question'}
+          </p>
+          <div className="live-session-progress-track" aria-hidden>
+            <div
+              className="live-session-progress-fill"
+              style={{
+                width: `${(Number(sessionProgress.completed) / Number(sessionProgress.total)) * 100}%`,
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {displayPhase === 'waiting' && groupFinale?.group_name && groupFinale?.finalized && (
+        <div className="live-panel live-panel--finale">
+          <h2 className="live-panel-title">Session complete</h2>
+          <p className="live-muted">
+            <strong>{groupFinale.group_name}</strong> · all {groupFinale.questions_total || sessionProgress?.total || '?'}{' '}
+            questions done
+          </p>
+          <LiveParentPodium
+            places={groupFinale.places || groupFinale.ranking || []}
+            myParticipantId={participant.id}
+          />
+          <p className="live-muted">Thanks for joining — wait for the host.</p>
+        </div>
+      )}
+
+      {displayPhase === 'waiting' && !(groupFinale?.group_name && groupFinale?.finalized) && (
         <div className="live-panel live-panel--wait">
           <h2 className="live-panel-title">Please wait</h2>
-          <p className="live-muted">The host will show the next question soon.</p>
+          {sessionProgress?.total > 0 ? (
+            <p className="live-muted">
+              {sessionProgress.completed} of {sessionProgress.total} questions done
+              {sessionProgress.pending > 0 ? ` · ${sessionProgress.pending} to go` : ''}
+            </p>
+          ) : (
+            <p className="live-muted">The host will show the next question soon.</p>
+          )}
         </div>
       )}
 
