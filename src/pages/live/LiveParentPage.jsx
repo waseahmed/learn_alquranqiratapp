@@ -7,9 +7,8 @@ import { useLiveQuizQuestions } from '../../hooks/useLiveQuizQuestions'
 import LiveAutoSendGapBanner from '../../components/live/LiveAutoSendGapBanner'
 import LiveGroupIntroFlash from '../../components/live/LiveGroupIntroFlash'
 import LiveParentPodium from '../../components/live/LiveParentPodium'
-import { useLiveQuizGetReadyReveal } from '../../hooks/useLiveQuizGetReadyReveal'
 import { getAutoSendGapCountdown } from '../../utils/liveQuizAutoSend'
-import LiveQuizGetReady from '../../components/live/LiveQuizGetReady'
+import LiveGroupResultsPanel from '../../components/live/LiveGroupResultsPanel'
 import { useParticipantHeartbeat } from '../../hooks/useParticipantHeartbeat'
 import {
   fetchLiveQuizParticipant,
@@ -103,7 +102,6 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
   )
 
   const autoSendEnabled = Boolean(activeGroup?.auto_send_questions)
-  const getReadyReveal = useLiveQuizGetReadyReveal(roundId, displayPhase, autoSendEnabled)
 
   const parentsAnswerOnDevice = useMemo(() => {
     if (question?.showQuestionsOnParents === false) return false
@@ -279,18 +277,18 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
       {displayPhase === 'waiting' && groupFinale?.group_name && groupFinale?.finalized && (
         <div
           key={groupFinale.finalized_at || 'group-finale'}
-          className={`live-panel live-panel--finale live-panel--pop-in ${finaleReveal ? 'live-screen--reveal' : ''}`}
+          className={`live-panel live-panel--group-results-wrap live-panel--pop-in ${
+            autoSendEnabled ? 'live-panel--group-results-wrap--auto' : ''
+          } ${finaleReveal ? 'live-screen--reveal' : ''}`}
         >
-          <h2 className="live-panel-title">Session complete</h2>
-          <p className="live-muted">
-            <strong>{groupFinale.group_name}</strong> · all {groupFinale.questions_total || sessionProgress?.total || '?'}{' '}
-            questions done
-          </p>
-          <LiveParentPodium
+          <LiveGroupResultsPanel
+            groupName={groupFinale.group_name}
+            questionsTotal={groupFinale.questions_total || sessionProgress?.total}
             places={groupFinale.places || groupFinale.ranking || []}
             myParticipantId={participant.id}
+            variant="parent"
+            autoQuiz={autoSendEnabled}
           />
-          <p className="live-muted">Thanks for joining — wait for the host.</p>
         </div>
       )}
 
@@ -326,21 +324,7 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
         </div>
       )}
 
-      {displayPhase === 'question' && question && parentsAnswerOnDevice && getReadyReveal && (
-        <div className="live-get-ready-overlay live-panel--themed" style={roundTheme}>
-          <LiveQuizGetReady
-            variant="parent"
-            seed={roundId}
-            hint={
-              sessionProgress?.total
-                ? `Question ${sessionProgress.completed} of ${sessionProgress.total}`
-                : null
-            }
-          />
-        </div>
-      )}
-
-      {displayPhase === 'question' && question && parentsAnswerOnDevice && !getReadyReveal && (
+      {displayPhase === 'question' && question && parentsAnswerOnDevice && (
         <div
           key={roundId}
           className="live-panel live-panel--active live-panel--pop-in live-panel--themed"
@@ -349,20 +333,29 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
           <p className="live-question-label live-question-label--themed">{question.title}</p>
           <p className="live-muted live-pick-hint">Tap your answer</p>
           <div className="live-parent-options" role="group" aria-label="Answer choices">
-            {question.sendLabels.map((label, idx) => {
+            {Array.from({ length: question.optionCount }, (_, idx) => {
               const optionNum = idx + 1
+              const optionText = question.options[idx]
+              const numbersOnly =
+                activeGroup?.send_option_text === false || question.sendOptionText === false
+              const showText = Boolean(optionText) && !numbersOnly
               const isSelected = votedOption === optionNum
               return (
                 <button
                   key={optionNum}
                   type="button"
-                  className={`btn live-parent-option live-option-stagger live-send-num live-parent-option--themed live-parent-option--with-text ${isSelected ? 'live-parent-option--picked' : ''}`}
+                  className={`btn live-parent-option live-option-stagger live-parent-option--themed ${showText ? 'live-parent-option--with-text' : 'live-send-num'} ${isSelected ? 'live-parent-option--picked' : ''}`}
                   style={{ animationDelay: `${idx * 80}ms` }}
                   onClick={() => handleVote(optionNum)}
                   disabled={voteBusy || Boolean(votedOption)}
                   aria-label={`Answer ${optionNum}: ${getFullOptionLabel(question, optionNum)}`}
                 >
-                  {label}
+                  <span className="live-parent-option-num" aria-hidden>
+                    {optionNum}
+                  </span>
+                  {showText ? (
+                    <span className="live-parent-option-label">{optionText}</span>
+                  ) : null}
                 </button>
               )
             })}
@@ -392,7 +385,6 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
           <LiveAutoSendGapBanner
             countdown={autoSendCountdown}
             variant="parent"
-            roundSeed={roundId}
             transitionSplash
           />
         </div>

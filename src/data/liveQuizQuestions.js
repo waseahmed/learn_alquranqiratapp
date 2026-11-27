@@ -44,30 +44,53 @@ export const DEFAULT_LIVE_QUESTIONS = [
   },
 ]
 
-function parentShowsOptionText(row, group) {
+/** True unless group explicitly saved “numbers only” (send_option_text false). */
+export function parentShowsOptionText(row, group = null) {
   const raw = row?.send_option_text ?? group?.send_option_text
   if (raw === false || raw === 'false') return false
   return true
 }
 
-export function normalizeQuestion(row, group = null) {
-  if (!row) return null
+/** Default on for parents whenever we do not have an explicit numbers-only flag. */
+export function parentShouldShowOptionText(row, group = null) {
+  const raw = row?.send_option_text ?? group?.send_option_text
+  if (raw === undefined || raw === null) return true
+  return raw !== false && raw !== 'false'
+}
+
+function readOptionStrings(row) {
   const options = []
-  if (row.option_1_text?.trim()) options.push(row.option_1_text.trim())
-  if (row.option_2_text?.trim()) options.push(row.option_2_text.trim())
-  if (row.option_3_text?.trim()) options.push(row.option_3_text.trim())
-  const optionCount = row.option_count ?? options.length
-  const sendOptionText = parentShowsOptionText(row, group)
-  const sendLabels = Array.from({ length: optionCount }, (_, i) => {
+  const o1 = row?.option_1_text ?? row?.option1_text
+  const o2 = row?.option_2_text ?? row?.option2_text
+  const o3 = row?.option_3_text ?? row?.option3_text
+  if (typeof o1 === 'string' && o1.trim()) options.push(o1.trim())
+  if (typeof o2 === 'string' && o2.trim()) options.push(o2.trim())
+  if (typeof o3 === 'string' && o3.trim()) options.push(o3.trim())
+  return options
+}
+
+export function buildParentOptionLabels(options, optionCount, numbersOnly = false) {
+  const count = Math.max(optionCount ?? 0, options.length, 1)
+  return Array.from({ length: count }, (_, i) => {
     const text = options[i]
-    if (sendOptionText && text) return `${i + 1}. ${text}`
+    if (text && !numbersOnly) return `${i + 1}. ${text}`
     return String(i + 1)
   })
+}
+
+export function normalizeQuestion(row, group = null) {
+  if (!row) return null
+  const options = readOptionStrings(row)
+  const declaredCount = Number(row.option_count) || 0
+  const effectiveCount = Math.max(declaredCount, options.length)
+  const numbersOnly = !parentShouldShowOptionText(row, group)
+  const sendOptionText = !numbersOnly
+  const sendLabels = buildParentOptionLabels(options, effectiveCount, numbersOnly)
   return {
     number: row.question_number,
     title: row.title || `Question ${row.question_number}`,
     options,
-    optionCount,
+    optionCount: effectiveCount,
     groupId: row.group_id ?? null,
     groupMode: row.group_mode === 'competition' ? 'competition' : 'poll',
     isCompetition: row.group_mode === 'competition',

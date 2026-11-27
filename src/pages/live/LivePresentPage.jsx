@@ -4,8 +4,7 @@ import LiveAutoSendGapBanner from '../../components/live/LiveAutoSendGapBanner'
 import LiveQuizLogo from '../../components/live/LiveQuizLogo'
 import { useLiveQuizQuestions } from '../../hooks/useLiveQuizQuestions'
 import { fetchLivePresentSnapshot } from '../../services/liveQuiz'
-import LiveQuizGetReady from '../../components/live/LiveQuizGetReady'
-import { useLiveQuizGetReadyReveal } from '../../hooks/useLiveQuizGetReadyReveal'
+import LiveGroupResultsPanel from '../../components/live/LiveGroupResultsPanel'
 import { getAutoSendGapCountdown } from '../../utils/liveQuizAutoSend'
 import { formatResponseMs } from '../../utils/liveQuizTiming'
 
@@ -190,7 +189,6 @@ export default function LivePresentPage() {
   const answerCount = Number(snapshot?.answer_count) || feed.length
 
   const autoSendEnabled = Boolean(configGroup?.auto_send_questions)
-  const getReadyReveal = useLiveQuizGetReadyReveal(roundId, displayPhase, autoSendEnabled)
 
   const feedTitle = isCompetition ? 'Fastest correct answers' : 'Answers as they arrive'
 
@@ -207,25 +205,39 @@ export default function LivePresentPage() {
               <p className="live-present-brand-sub">Al Quran Qirat Academy</p>
             </div>
           </div>
-          <span className="live-present-pill live-present-pill--finale">Session complete</span>
+          <span className="live-present-pill live-present-pill--finale">Results</span>
         </header>
 
         <div
           key={groupFinale.finalized_at || 'finale'}
-          className="live-present-finale-hero live-panel--pop-in"
+          className={`live-present-finale-hero live-panel--pop-in ${
+            autoSendEnabled ? 'live-present-finale-hero--auto' : ''
+          }`}
         >
-          <h1 className="live-present-finale-title">{groupFinale.group_name}</h1>
-          <p className="live-present-finale-sub">
-            All {groupFinale.questions_total || sessionProgress?.total || '?'} questions complete
-          </p>
-          <div className="live-present-podium-tree live-present-podium-tree--finale">
-            <PodiumNode place={1} entry={finalePodiumSlots[1]} animate />
-            <div className="live-present-podium-connect" aria-hidden />
-            <div className="live-present-podium-branches">
-              <PodiumNode place={2} entry={finalePodiumSlots[2]} animate />
-              <PodiumNode place={3} entry={finalePodiumSlots[3]} animate />
-            </div>
-          </div>
+          {autoSendEnabled ? (
+            <LiveGroupResultsPanel
+              groupName={groupFinale.group_name}
+              questionsTotal={groupFinale.questions_total || sessionProgress?.total}
+              places={finalePlaces}
+              variant="present"
+              autoQuiz
+            />
+          ) : (
+            <>
+              <h1 className="live-present-finale-title">{groupFinale.group_name}</h1>
+              <p className="live-present-finale-sub">
+                All {groupFinale.questions_total || sessionProgress?.total || '?'} questions complete
+              </p>
+              <div className="live-present-podium-tree live-present-podium-tree--finale">
+                <PodiumNode place={1} entry={finalePodiumSlots[1]} animate />
+                <div className="live-present-podium-connect" aria-hidden />
+                <div className="live-present-podium-branches">
+                  <PodiumNode place={2} entry={finalePodiumSlots[2]} animate />
+                  <PodiumNode place={3} entry={finalePodiumSlots[3]} animate />
+                </div>
+              </div>
+            </>
+          )}
         </div>
 
         {finaleLeaderboard.length > 0 && (
@@ -292,7 +304,6 @@ export default function LivePresentPage() {
           <LiveAutoSendGapBanner
             countdown={autoSendCountdown}
             variant="present"
-            roundSeed={roundId}
             transitionSplash
           />
         </div>
@@ -308,17 +319,9 @@ export default function LivePresentPage() {
         </div>
       )}
 
-      {getReadyReveal && isLiveQuestion && !isTimedOut && (
-        <div className="live-present-get-ready-wrap">
-          <LiveQuizGetReady variant="present" seed={roundId} />
-        </div>
-      )}
-
       <div
         className={`live-present-columns ${
-          getReadyReveal || (isTimedOut && autoSendCountdown)
-            ? 'live-present-columns--dimmed'
-            : ''
+          isTimedOut && autoSendCountdown ? 'live-present-columns--dimmed' : ''
         }`}
       >
         <aside className="live-present-col live-present-col--feed" aria-labelledby="feed-heading">
