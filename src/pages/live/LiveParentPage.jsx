@@ -3,6 +3,9 @@ import { paletteToCssVars, pickPaletteForRound } from '../../data/liveQuizPalett
 import ConfettiBurst from '../../components/live/ConfettiBurst'
 import { getFullOptionLabel } from '../../data/liveQuizQuestions'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
+import { useLiveQuizQuestions } from '../../hooks/useLiveQuizQuestions'
+import LiveGroupIntroFlash from '../../components/live/LiveGroupIntroFlash'
+import LiveParentPodium from '../../components/live/LiveParentPodium'
 import { useParticipantHeartbeat } from '../../hooks/useParticipantHeartbeat'
 import {
   fetchLiveQuizParticipant,
@@ -20,6 +23,7 @@ import {
 } from '../../utils/liveQuizSounds'
 
 const STORAGE_KEY = 'aqqa_live_participant'
+const INTRO_DISMISS_KEY = 'aqqa_live_intro_dismissed'
 
 function readStoredParticipantId() {
   try {
@@ -40,11 +44,13 @@ function roleLabel(role) {
   return role === 'father' ? 'Father' : 'Mother'
 }
 
-function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
+function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
   const {
     displayPhase,
     question,
     roundId,
+    activeGroupId,
+    groupIntroToken,
     remainingSec,
     timerSeconds,
     loadError,
@@ -56,6 +62,8 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
   const [voteBusy, setVoteBusy] = useState(false)
   const [revealAnim, setRevealAnim] = useState(false)
   const [roundResults, setRoundResults] = useState(null)
+  const [showIntroFlash, setShowIntroFlash] = useState(false)
+  const [introGroupName, setIntroGroupName] = useState('')
   const lastTickSecRef = useRef(null)
 
   const roundTheme = useMemo(
@@ -64,6 +72,50 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
   )
 
   useParticipantHeartbeat(participant.id, onSessionEnded)
+
+  const activeGroup = useMemo(
+    () => groups?.find((g) => Number(g.id) === Number(activeGroupId)) ?? null,
+    [groups, activeGroupId],
+  )
+
+  const parentsAnswerOnDevice = useMemo(() => {
+    if (question?.showQuestionsOnParents === false) return false
+    if (activeGroup?.show_questions_on_parents === false) return false
+    return true
+  }, [question, activeGroup])
+
+  function dismissIntro() {
+    if (groupIntroToken) {
+      try {
+        sessionStorage.setItem(INTRO_DISMISS_KEY, groupIntroToken)
+      } catch {
+        /* ignore */
+      }
+    }
+    setShowIntroFlash(false)
+  }
+
+  useEffect(() => {
+    if (displayPhase !== 'waiting' || !groupIntroToken || !activeGroupId) {
+      setShowIntroFlash(false)
+      return
+    }
+    const group = groups?.find((g) => Number(g.id) === Number(activeGroupId))
+    if (!group || group.show_group_intro_flash === false) {
+      setShowIntroFlash(false)
+      return
+    }
+    try {
+      if (sessionStorage.getItem(INTRO_DISMISS_KEY) === groupIntroToken) {
+        setShowIntroFlash(false)
+        return
+      }
+    } catch {
+      /* ignore */
+    }
+    setIntroGroupName(group.name || 'Session')
+    setShowIntroFlash(true)
+  }, [displayPhase, groupIntroToken, activeGroupId, groups])
 
   useEffect(() => {
     setVotedOption(null)
@@ -146,8 +198,15 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
     )
   }
 
+  const topPlaces = roundResults?.places?.length
+    ? roundResults.places
+    : (roundResults?.ranking || []).filter((r) => (r.rank ?? 99) <= 3)
+
   return (
     <div className={`live-screen ${revealAnim ? 'live-screen--reveal' : ''}`}>
+      {showIntroFlash && (
+        <LiveGroupIntroFlash groupName={introGroupName} onDismiss={dismissIntro} />
+      )}
       <p className="live-welcome">
         <strong>{participant.kidName}</strong> ({roleLabel(participant.parentRole)})
       </p>
@@ -166,7 +225,18 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
         </div>
       )}
 
-      {displayPhase === 'question' && question && (
+      {displayPhase === 'question' && question && !parentsAnswerOnDevice && (
+        <div className="live-panel live-panel--watch">
+          <h2 className="live-panel-title">Watch the big screen</h2>
+          <p className="live-muted">
+            This round is presentation-only. Questions are shown on the main display — please watch
+            there.
+          </p>
+          <p className="live-watch-q live-question-label">{question.title}</p>
+        </div>
+      )}
+
+      {displayPhase === 'question' && question && parentsAnswerOnDevice && (
         <div
           key={roundId}
           className="live-panel live-panel--active live-panel--pop-in live-panel--themed"
@@ -237,9 +307,16 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
               )}
             </p>
           )}
-          {resultsList.length > 0 ? (
-            <ol className="live-results-list" aria-label="Who answered fastest">
-              {resultsList.map((row, idx) => (
+          {topPlaces.length > 0 ? (
+            <LiveParentPodium places={topPlaces} myParticipantId={participant.id} />
+          ) : resultsList.length > 0 ? (
+            <p className="live-muted">Loading top 3…</p>
+          ) : (
+            <p className="live-muted">Loading results…</p>
+          )}
+          {resultsList.length > 3 && (
+            <ol className="live-results-list live-results-list--rest" aria-label="Other answers">
+              {resultsList.slice(3).map((row, idx) => (
                 <li
                   key={row.participant_id || idx}
                   className={
@@ -248,14 +325,12 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
                       : 'live-results-row'
                   }
                 >
-                  <span className="live-results-rank">{row.rank ?? idx + 1}</span>
+                  <span className="live-results-rank">{row.rank ?? idx + 4}</span>
                   <span className="live-results-name">{row.kid_name}</span>
                   <span className="live-results-ms">{formatResponseMs(row.response_ms)}</span>
                 </li>
               ))}
             </ol>
-          ) : (
-            <p className="live-muted">Loading results…</p>
           )}
           <p className="live-muted">Wait for the host to continue.</p>
         </div>
@@ -265,6 +340,7 @@ function LiveScreen({ participant, onAnswerConfetti, onSessionEnded }) {
 }
 
 export default function LiveParentPage() {
+  const { groups } = useLiveQuizQuestions()
   const [participant, setParticipant] = useState(null)
   const [kidName, setKidName] = useState('')
   const [parentRole, setParentRole] = useState('mother')
@@ -416,6 +492,7 @@ export default function LiveParentPage() {
           <>
             <LiveScreen
               participant={participant}
+              groups={groups}
               onAnswerConfetti={triggerAnswerConfetti}
               onSessionEnded={handleLeave}
             />

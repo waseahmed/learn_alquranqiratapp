@@ -57,6 +57,8 @@ export default function LiveQuizConfig({
         name: g.name || '',
         mode: g.mode === 'competition' ? 'competition' : 'poll',
         sort_order: g.sort_order ?? 0,
+        show_questions_on_parents: g.show_questions_on_parents !== false,
+        show_group_intro_flash: g.show_group_intro_flash !== false,
       })),
     )
   }, [groupsProp])
@@ -108,6 +110,8 @@ export default function LiveQuizConfig({
       name: g.name.trim() || `Group ${idx + 1}`,
       mode: g.mode === 'competition' ? 'competition' : 'poll',
       sort_order: idx,
+      show_questions_on_parents: g.show_questions_on_parents !== false,
+      show_group_intro_flash: g.show_group_intro_flash !== false,
     }))
 
     const modeMap = new Map(groupsToSave.map((g) => [g.id, g.mode]))
@@ -151,11 +155,26 @@ export default function LiveQuizConfig({
         const tempId = -Date.now()
         nextGroups = [
           ...nextGroups,
-          { id: tempId, name: d.name.trim(), mode: d.mode, sort_order: nextGroups.length },
+          {
+            id: tempId,
+            name: d.name.trim(),
+            mode: d.mode,
+            sort_order: nextGroups.length,
+            show_questions_on_parents: d.show_questions_on_parents !== false,
+            show_group_intro_flash: d.show_group_intro_flash !== false,
+          },
         ]
       } else {
         nextGroups = nextGroups.map((g) =>
-          g.id === d.id ? { ...g, name: d.name.trim(), mode: d.mode } : g,
+          g.id === d.id
+            ? {
+                ...g,
+                name: d.name.trim(),
+                mode: d.mode,
+                show_questions_on_parents: d.show_questions_on_parents !== false,
+                show_group_intro_flash: d.show_group_intro_flash !== false,
+              }
+            : g,
         )
       }
       setGroupDraft(nextGroups)
@@ -293,7 +312,13 @@ export default function LiveQuizConfig({
     setGroupDrawer({
       open: true,
       mode: 'add',
-      draft: { id: null, name: '', mode: 'poll' },
+      draft: {
+        id: null,
+        name: '',
+        mode: 'poll',
+        show_questions_on_parents: true,
+        show_group_intro_flash: true,
+      },
     })
   }
 
@@ -301,7 +326,13 @@ export default function LiveQuizConfig({
     setGroupDrawer({
       open: true,
       mode: 'edit',
-      draft: { id: g.id, name: g.name, mode: g.mode },
+      draft: {
+        id: g.id,
+        name: g.name,
+        mode: g.mode,
+        show_questions_on_parents: g.show_questions_on_parents !== false,
+        show_group_intro_flash: g.show_group_intro_flash !== false,
+      },
     })
   }
 
@@ -399,6 +430,18 @@ export default function LiveQuizConfig({
                     {questionCountByGroup.get(g.id) || 0} question
                     {(questionCountByGroup.get(g.id) || 0) === 1 ? '' : 's'}
                   </p>
+                  <ul className="live-group-card-flags">
+                    {g.show_questions_on_parents === false ? (
+                      <li>Presentation only (no parent questions)</li>
+                    ) : (
+                      <li>Questions on parent phones</li>
+                    )}
+                    {g.show_group_intro_flash !== false ? (
+                      <li>Group intro flash</li>
+                    ) : (
+                      <li>No intro flash</li>
+                    )}
+                  </ul>
                   <div className="live-group-card-actions">
                     <button type="button" className="btn ghost" onClick={() => openEditGroup(g)} disabled={disabled || saveBusy}>
                       Edit
@@ -613,6 +656,43 @@ export default function LiveQuizConfig({
               <option value="poll">Poll — collect opinions</option>
               <option value="competition">Competition — correct answer &amp; speed</option>
             </select>
+            <fieldset className="live-drawer-checks">
+              <legend className="live-drawer-checks-legend">Parent screen options</legend>
+              <label className="live-drawer-check">
+                <input
+                  type="checkbox"
+                  checked={groupDrawer.draft.show_questions_on_parents !== false}
+                  onChange={(e) =>
+                    setGroupDrawer((prev) => ({
+                      ...prev,
+                      draft: {
+                        ...prev.draft,
+                        show_questions_on_parents: e.target.checked,
+                      },
+                    }))
+                  }
+                  disabled={disabled || saveBusy}
+                />
+                Send questions to parent phones (answer on device)
+              </label>
+              <label className="live-drawer-check">
+                <input
+                  type="checkbox"
+                  checked={groupDrawer.draft.show_group_intro_flash !== false}
+                  onChange={(e) =>
+                    setGroupDrawer((prev) => ({
+                      ...prev,
+                      draft: {
+                        ...prev.draft,
+                        show_group_intro_flash: e.target.checked,
+                      },
+                    }))
+                  }
+                  disabled={disabled || saveBusy}
+                />
+                Show animated intro flash with group name when hosting starts
+              </label>
+            </fieldset>
           </div>
         )}
       </LiveSlideDrawer>

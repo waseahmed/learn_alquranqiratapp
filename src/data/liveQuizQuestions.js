@@ -60,6 +60,7 @@ export function normalizeQuestion(row) {
     groupMode: row.group_mode === 'competition' ? 'competition' : 'poll',
     isCompetition: row.group_mode === 'competition',
     correctOption: row.correct_option ?? null,
+    showQuestionsOnParents: row.show_questions_on_parents !== false,
     /** Shown on parent + admin send buttons during live session */
     sendLabels: Array.from({ length: optionCount }, (_, i) => String(i + 1)),
   }

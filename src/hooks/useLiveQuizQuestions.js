@@ -5,7 +5,14 @@ import { fetchLiveQuizQuestions, subscribeLiveQuizQuestions } from '../services/
 export function useLiveQuizQuestions() {
   const [rows, setRows] = useState(DEFAULT_LIVE_QUESTIONS)
   const [groups, setGroups] = useState([
-    { id: 1, name: 'General session', mode: 'poll', sort_order: 0 },
+    {
+      id: 1,
+      name: 'General session',
+      mode: 'poll',
+      sort_order: 0,
+      show_questions_on_parents: true,
+      show_group_intro_flash: true,
+    },
   ])
   const [loadError, setLoadError] = useState('')
   const [loading, setLoading] = useState(true)
