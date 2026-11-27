@@ -68,8 +68,9 @@ export function useLiveQuizDisplay() {
       remainingMs,
       remainingSec: Math.ceil(remainingMs / 1000),
       timerSeconds,
+      phaseStartedAt: state?.phase_started_at ?? null,
     }
   }, [state, now, questionRows])
 
-  return { ...display, loadError, loading: state === null && !loadError }
+  return { ...display, now, loadError, loading: state === null && !loadError }
 }

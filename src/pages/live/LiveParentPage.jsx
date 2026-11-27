@@ -4,8 +4,12 @@ import ConfettiBurst from '../../components/live/ConfettiBurst'
 import { getFullOptionLabel } from '../../data/liveQuizQuestions'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
 import { useLiveQuizQuestions } from '../../hooks/useLiveQuizQuestions'
+import LiveAutoSendGapBanner from '../../components/live/LiveAutoSendGapBanner'
 import LiveGroupIntroFlash from '../../components/live/LiveGroupIntroFlash'
 import LiveParentPodium from '../../components/live/LiveParentPodium'
+import { useLiveQuizGetReadyReveal } from '../../hooks/useLiveQuizGetReadyReveal'
+import { getAutoSendGapCountdown } from '../../utils/liveQuizAutoSend'
+import LiveQuizGetReady from '../../components/live/LiveQuizGetReady'
 import { useParticipantHeartbeat } from '../../hooks/useParticipantHeartbeat'
 import {
   fetchLiveQuizParticipant,
@@ -55,6 +59,8 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
     groupFinale,
     remainingSec,
     timerSeconds,
+    phaseStartedAt,
+    now,
     loadError,
     loading,
   } = useLiveQuizDisplay()
@@ -67,6 +73,8 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
   const [showIntroFlash, setShowIntroFlash] = useState(false)
   const [introGroupName, setIntroGroupName] = useState('')
   const lastTickSecRef = useRef(null)
+  const lastGapTickRef = useRef(null)
+  const [finaleReveal, setFinaleReveal] = useState(false)
 
   const roundTheme = useMemo(
     () => paletteToCssVars(pickPaletteForRound(participant.id, roundId)),
@@ -79,6 +87,23 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
     () => groups?.find((g) => Number(g.id) === Number(activeGroupId)) ?? null,
     [groups, activeGroupId],
   )
+
+  const autoSendCountdown = useMemo(
+    () =>
+      getAutoSendGapCountdown({
+        displayPhase,
+        phaseStartedAt,
+        timerSeconds,
+        now,
+        autoSendQuestions: Boolean(activeGroup?.auto_send_questions),
+        gapSeconds: activeGroup?.auto_send_gap_seconds,
+        sessionProgress,
+      }),
+    [displayPhase, phaseStartedAt, timerSeconds, now, activeGroup, sessionProgress],
+  )
+
+  const autoSendEnabled = Boolean(activeGroup?.auto_send_questions)
+  const getReadyReveal = useLiveQuizGetReadyReveal(roundId, displayPhase, autoSendEnabled)
 
   const parentsAnswerOnDevice = useMemo(() => {
     if (question?.showQuestionsOnParents === false) return false
@@ -124,6 +149,7 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
     setVoteError('')
     setRoundResults(null)
     lastTickSecRef.current = null
+    lastGapTickRef.current = null
   }, [roundId])
 
   useEffect(() => {
@@ -159,6 +185,26 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
     lastTickSecRef.current = remainingSec
     playCountdownTickSound(remainingSec)
   }, [displayPhase, remainingSec])
+
+  useEffect(() => {
+    if (displayPhase !== 'timed_out' || !autoSendCountdown?.seconds) return
+    const sec = autoSendCountdown.seconds
+    if (sec > 5 || sec < 1) return
+    if (lastGapTickRef.current === sec) return
+    lastGapTickRef.current = sec
+    playCountdownTickSound(sec)
+  }, [displayPhase, autoSendCountdown?.seconds])
+
+  useEffect(() => {
+    if (!groupFinale?.finalized || !groupFinale?.group_name) {
+      setFinaleReveal(false)
+      return undefined
+    }
+    setFinaleReveal(true)
+    playQuestionPopSound()
+    const t = window.setTimeout(() => setFinaleReveal(false), 800)
+    return () => window.clearTimeout(t)
+  }, [groupFinale?.finalized, groupFinale?.finalized_at, groupFinale?.group_name])
 
   async function handleVote(optionNumber) {
     if (displayPhase !== 'question' || voteBusy || votedOption) return
@@ -231,7 +277,10 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
       )}
 
       {displayPhase === 'waiting' && groupFinale?.group_name && groupFinale?.finalized && (
-        <div className="live-panel live-panel--finale">
+        <div
+          key={groupFinale.finalized_at || 'group-finale'}
+          className={`live-panel live-panel--finale live-panel--pop-in ${finaleReveal ? 'live-screen--reveal' : ''}`}
+        >
           <h2 className="live-panel-title">Session complete</h2>
           <p className="live-muted">
             <strong>{groupFinale.group_name}</strong> · all {groupFinale.questions_total || sessionProgress?.total || '?'}{' '}
@@ -277,7 +326,21 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
         </div>
       )}
 
-      {displayPhase === 'question' && question && parentsAnswerOnDevice && (
+      {displayPhase === 'question' && question && parentsAnswerOnDevice && getReadyReveal && (
+        <div className="live-get-ready-overlay live-panel--themed" style={roundTheme}>
+          <LiveQuizGetReady
+            variant="parent"
+            seed={roundId}
+            hint={
+              sessionProgress?.total
+                ? `Question ${sessionProgress.completed} of ${sessionProgress.total}`
+                : null
+            }
+          />
+        </div>
+      )}
+
+      {displayPhase === 'question' && question && parentsAnswerOnDevice && !getReadyReveal && (
         <div
           key={roundId}
           className="live-panel live-panel--active live-panel--pop-in live-panel--themed"
@@ -293,7 +356,7 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
                 <button
                   key={optionNum}
                   type="button"
-                  className={`btn live-parent-option live-option-stagger live-send-num live-parent-option--themed ${isSelected ? 'live-parent-option--picked' : ''}`}
+                  className={`btn live-parent-option live-option-stagger live-send-num live-parent-option--themed ${question.sendOptionText ? 'live-parent-option--with-text' : ''} ${isSelected ? 'live-parent-option--picked' : ''}`}
                   style={{ animationDelay: `${idx * 80}ms` }}
                   onClick={() => handleVote(optionNum)}
                   disabled={voteBusy || Boolean(votedOption)}
@@ -373,7 +436,11 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
               ))}
             </ol>
           )}
-          <p className="live-muted">Wait for the host to continue.</p>
+          {autoSendCountdown ? (
+            <LiveAutoSendGapBanner countdown={autoSendCountdown} roundSeed={roundId} />
+          ) : (
+            <p className="live-muted">Wait for the host to continue.</p>
+          )}
         </div>
       )}
     </div>

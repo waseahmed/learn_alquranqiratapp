@@ -14,6 +14,7 @@ export function useLiveQuizQuestions() {
       show_group_intro_flash: true,
       auto_send_questions: false,
       auto_send_gap_seconds: 5,
+      send_option_text: false,
     },
   ])
   const [loadError, setLoadError] = useState('')

@@ -61,6 +61,7 @@ export default function LiveQuizConfig({
         show_group_intro_flash: g.show_group_intro_flash !== false,
         auto_send_questions: Boolean(g.auto_send_questions),
         auto_send_gap_seconds: Number(g.auto_send_gap_seconds) || 5,
+        send_option_text: Boolean(g.send_option_text),
       })),
     )
   }, [groupsProp])
@@ -116,6 +117,7 @@ export default function LiveQuizConfig({
       show_group_intro_flash: g.show_group_intro_flash !== false,
       auto_send_questions: Boolean(g.auto_send_questions),
       auto_send_gap_seconds: Number(g.auto_send_gap_seconds) || 5,
+      send_option_text: Boolean(g.send_option_text),
     }))
 
     const modeMap = new Map(groupsToSave.map((g) => [g.id, g.mode]))
@@ -168,6 +170,7 @@ export default function LiveQuizConfig({
             show_group_intro_flash: d.show_group_intro_flash !== false,
             auto_send_questions: Boolean(d.auto_send_questions),
             auto_send_gap_seconds: Number(d.auto_send_gap_seconds) || 5,
+            send_option_text: Boolean(d.send_option_text),
           },
         ]
       } else {
@@ -181,6 +184,7 @@ export default function LiveQuizConfig({
                 show_group_intro_flash: d.show_group_intro_flash !== false,
                 auto_send_questions: Boolean(d.auto_send_questions),
                 auto_send_gap_seconds: Number(d.auto_send_gap_seconds) || 5,
+                send_option_text: Boolean(d.send_option_text),
               }
             : g,
         )
@@ -328,6 +332,7 @@ export default function LiveQuizConfig({
         show_group_intro_flash: true,
         auto_send_questions: true,
         auto_send_gap_seconds: 5,
+        send_option_text: false,
       },
     })
   }
@@ -344,6 +349,7 @@ export default function LiveQuizConfig({
         show_group_intro_flash: g.show_group_intro_flash !== false,
         auto_send_questions: Boolean(g.auto_send_questions),
         auto_send_gap_seconds: Number(g.auto_send_gap_seconds) || 5,
+        send_option_text: Boolean(g.send_option_text),
       },
     })
   }
@@ -457,6 +463,11 @@ export default function LiveQuizConfig({
                       <li>Auto-send · {g.auto_send_gap_seconds || 5}s gap</li>
                     ) : (
                       <li>Manual send only</li>
+                    )}
+                    {g.send_option_text ? (
+                      <li>Answer text on buttons</li>
+                    ) : (
+                      <li>Numbered buttons only</li>
                     )}
                   </ul>
                   <div className="live-group-card-actions">
@@ -691,6 +702,20 @@ export default function LiveQuizConfig({
                   disabled={disabled || saveBusy}
                 />
                 Send questions to parent phones (answer on device)
+              </label>
+              <label className="live-drawer-check">
+                <input
+                  type="checkbox"
+                  checked={Boolean(groupDrawer.draft.send_option_text)}
+                  onChange={(e) =>
+                    setGroupDrawer((prev) => ({
+                      ...prev,
+                      draft: { ...prev.draft, send_option_text: e.target.checked },
+                    }))
+                  }
+                  disabled={disabled || saveBusy}
+                />
+                Show answer text on parent buttons (not only 1, 2, 3)
               </label>
               <label className="live-drawer-check">
                 <input

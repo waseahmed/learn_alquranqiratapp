@@ -4,7 +4,9 @@ import { getQuestionFromList } from '../../data/liveQuizQuestions'
 import LiveAdminAnalysisPanel from '../../components/live/LiveAdminAnalysisPanel'
 import LiveAdminSidebar, { liveAdminSectionTitle } from '../../components/live/LiveAdminSidebar'
 import LiveAdminSubTabs from '../../components/live/LiveAdminSubTabs'
+import LiveAutoSendGapBanner from '../../components/live/LiveAutoSendGapBanner'
 import LiveQuizConfig from '../../components/live/LiveQuizConfig'
+import { getAutoSendGapCountdown } from '../../utils/liveQuizAutoSend'
 import { LiveUsersDashboard, LiveUsersRoster } from '../../components/live/LiveUsersPanel'
 import { useLiveQuizDisplay } from '../../hooks/useLiveQuizDisplay'
 import { useLiveQuizQuestions } from '../../hooks/useLiveQuizQuestions'
@@ -513,6 +515,27 @@ export default function LiveAdminPage() {
     ? `${activeGroup.name} · ${activeGroup.mode === 'competition' ? 'Competition' : 'Poll'}`
     : null
 
+  const autoSendCountdown = useMemo(
+    () =>
+      getAutoSendGapCountdown({
+        displayPhase: display.displayPhase,
+        phaseStartedAt: display.phaseStartedAt,
+        timerSeconds: display.timerSeconds,
+        now: display.now,
+        autoSendQuestions: Boolean(activeGroup?.auto_send_questions),
+        gapSeconds: activeGroup?.auto_send_gap_seconds,
+        sessionProgress: display.sessionProgress,
+      }),
+    [
+      display.displayPhase,
+      display.phaseStartedAt,
+      display.timerSeconds,
+      display.now,
+      display.sessionProgress,
+      activeGroup,
+    ],
+  )
+
   useEffect(() => {
     if (!pinUnlocked || !activeGroup?.auto_send_questions) return undefined
     if (display.displayPhase !== 'timed_out' || !display.questionNumber || !display.roundId) {
@@ -765,14 +788,25 @@ export default function LiveAdminPage() {
                       {preview.displayPhase === 'question' && !liveQuestion && (
                         <span className="live-preview-muted">—</span>
                       )}
-                      {preview.displayPhase === 'timed_out' && (
-                        <span className="live-preview-muted">—</span>
+                      {preview.displayPhase === 'timed_out' && !autoSendCountdown && (
+                        <span className="live-preview-muted">Time&apos;s up — round results</span>
+                      )}
+                      {preview.displayPhase === 'timed_out' && autoSendCountdown && (
+                        <span className="live-preview-muted">
+                          Time&apos;s up — auto-advance countdown on parent phones
+                        </span>
                       )}
                     </p>
-                    {preview.displayPhase === 'timed_out' && (
+                    {preview.displayPhase === 'timed_out' && autoSendCountdown && (
+                      <LiveAutoSendGapBanner
+                        countdown={autoSendCountdown}
+                        variant="compact"
+                        className="live-admin-auto-gap"
+                      />
+                    )}
+                    {preview.displayPhase === 'timed_out' && !autoSendCountdown && (
                       <p className="live-muted live-preview-note">
-                        Timer ended. Nothing new on parent screens until you send a question or end
-                        the round.
+                        Timer ended. Send the next question or end the round manually.
                       </p>
                     )}
                   </div>

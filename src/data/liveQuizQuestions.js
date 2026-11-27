@@ -51,6 +51,12 @@ export function normalizeQuestion(row) {
   if (row.option_2_text?.trim()) options.push(row.option_2_text.trim())
   if (row.option_3_text?.trim()) options.push(row.option_3_text.trim())
   const optionCount = row.option_count ?? options.length
+  const sendOptionText = row.send_option_text === true
+  const sendLabels = Array.from({ length: optionCount }, (_, i) => {
+    const text = options[i]
+    if (sendOptionText && text) return `${i + 1}. ${text}`
+    return String(i + 1)
+  })
   return {
     number: row.question_number,
     title: row.title || `Question ${row.question_number}`,
@@ -61,8 +67,9 @@ export function normalizeQuestion(row) {
     isCompetition: row.group_mode === 'competition',
     correctOption: row.correct_option ?? null,
     showQuestionsOnParents: row.show_questions_on_parents !== false,
+    sendOptionText,
     /** Shown on parent + admin send buttons during live session */
-    sendLabels: Array.from({ length: optionCount }, (_, i) => String(i + 1)),
+    sendLabels,
   }
 }
 
