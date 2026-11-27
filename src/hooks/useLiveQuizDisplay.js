@@ -15,7 +15,7 @@ function msRemaining(state, now) {
  * Shared display phase for parents and admin: waiting | question | timed_out
  */
 export function useLiveQuizDisplay() {
-  const { rows: questionRows } = useLiveQuizQuestions()
+  const { rows: questionRows, groups } = useLiveQuizQuestions()
   const [state, setState] = useState(null)
   const [loadError, setLoadError] = useState('')
   const [now, setNow] = useState(() => Date.now())
@@ -41,9 +41,14 @@ export function useLiveQuizDisplay() {
     return () => window.clearInterval(id)
   }, [])
 
+  const groupById = useMemo(
+    () => new Map(groups.map((g) => [Number(g.id), g])),
+    [groups],
+  )
+
   const display = useMemo(() => {
     const timerSeconds = state?.timer_seconds ?? LIVE_QUIZ_TIMER_SECONDS
-    const question = getQuestionFromList(questionRows, state?.question_number)
+    const question = getQuestionFromList(questionRows, state?.question_number, groupById)
     const remainingMs = msRemaining(state, now)
     let displayPhase = 'waiting'
     if (state?.phase === 'question') {
@@ -70,7 +75,7 @@ export function useLiveQuizDisplay() {
       timerSeconds,
       phaseStartedAt: state?.phase_started_at ?? null,
     }
-  }, [state, now, questionRows])
+  }, [state, now, questionRows, groupById])
 
   return { ...display, now, loadError, loading: state === null && !loadError }
 }

@@ -44,14 +44,20 @@ export const DEFAULT_LIVE_QUESTIONS = [
   },
 ]
 
-export function normalizeQuestion(row) {
+function parentShowsOptionText(row, group) {
+  const raw = row?.send_option_text ?? group?.send_option_text
+  if (raw === false || raw === 'false') return false
+  return true
+}
+
+export function normalizeQuestion(row, group = null) {
   if (!row) return null
   const options = []
   if (row.option_1_text?.trim()) options.push(row.option_1_text.trim())
   if (row.option_2_text?.trim()) options.push(row.option_2_text.trim())
   if (row.option_3_text?.trim()) options.push(row.option_3_text.trim())
   const optionCount = row.option_count ?? options.length
-  const sendOptionText = row.send_option_text === true
+  const sendOptionText = parentShowsOptionText(row, group)
   const sendLabels = Array.from({ length: optionCount }, (_, i) => {
     const text = options[i]
     if (sendOptionText && text) return `${i + 1}. ${text}`
@@ -73,9 +79,14 @@ export function normalizeQuestion(row) {
   }
 }
 
-export function getQuestionFromList(list, number) {
+export function getQuestionFromList(list, number, groupLookup = null) {
   const row = list?.find((q) => q.question_number === number)
-  return normalizeQuestion(row)
+  if (!row) return null
+  const group =
+    typeof groupLookup === 'function'
+      ? groupLookup(row.group_id)
+      : groupLookup?.get?.(Number(row.group_id)) ?? null
+  return normalizeQuestion(row, group)
 }
 
 export function getFullOptionLabel(question, optionNumber) {

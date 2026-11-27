@@ -356,7 +356,7 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
                 <button
                   key={optionNum}
                   type="button"
-                  className={`btn live-parent-option live-option-stagger live-send-num live-parent-option--themed ${question.sendOptionText ? 'live-parent-option--with-text' : ''} ${isSelected ? 'live-parent-option--picked' : ''}`}
+                  className={`btn live-parent-option live-option-stagger live-send-num live-parent-option--themed live-parent-option--with-text ${isSelected ? 'live-parent-option--picked' : ''}`}
                   style={{ animationDelay: `${idx * 80}ms` }}
                   onClick={() => handleVote(optionNum)}
                   disabled={voteBusy || Boolean(votedOption)}
@@ -387,7 +387,18 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
         </div>
       )}
 
-      {displayPhase === 'timed_out' && (
+      {displayPhase === 'timed_out' && autoSendCountdown && (
+        <div className="live-panel live-panel--auto-transition">
+          <LiveAutoSendGapBanner
+            countdown={autoSendCountdown}
+            variant="parent"
+            roundSeed={roundId}
+            transitionSplash
+          />
+        </div>
+      )}
+
+      {displayPhase === 'timed_out' && !autoSendCountdown && (
         <div className="live-panel live-panel--timeout live-panel--results">
           <h2 className="live-panel-title">Time&apos;s up</h2>
           {roundResults?.question_title && (
@@ -436,11 +447,7 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
               ))}
             </ol>
           )}
-          {autoSendCountdown ? (
-            <LiveAutoSendGapBanner countdown={autoSendCountdown} roundSeed={roundId} />
-          ) : (
-            <p className="live-muted">Wait for the host to continue.</p>
-          )}
+          <p className="live-muted">Wait for the host to continue.</p>
         </div>
       )}
     </div>

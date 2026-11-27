@@ -332,7 +332,7 @@ export default function LiveQuizConfig({
         show_group_intro_flash: true,
         auto_send_questions: true,
         auto_send_gap_seconds: 5,
-        send_option_text: false,
+        send_option_text: true,
       },
     })
   }
@@ -715,7 +715,7 @@ export default function LiveQuizConfig({
                   }
                   disabled={disabled || saveBusy}
                 />
-                Show answer text on parent buttons (not only 1, 2, 3)
+                Show answer text on parent buttons (1. Option name — uncheck for numbers only)
               </label>
               <label className="live-drawer-check">
                 <input

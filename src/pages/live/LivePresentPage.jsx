@@ -287,22 +287,26 @@ export default function LivePresentPage() {
         </p>
       )}
 
-      <div className="live-present-question-bar">
-        {title ? (
-          <h1 className="live-present-question-text">{title}</h1>
-        ) : (
-          <p className="live-present-empty live-present-empty--hero">
-            Waiting for the host to send a question…
-          </p>
-        )}
-        {isTimedOut && autoSendCountdown && (
+      {isTimedOut && autoSendCountdown ? (
+        <div className="live-present-question-bar live-present-question-bar--transition">
           <LiveAutoSendGapBanner
             countdown={autoSendCountdown}
             variant="present"
             roundSeed={roundId}
+            transitionSplash
           />
-        )}
-      </div>
+        </div>
+      ) : (
+        <div className="live-present-question-bar">
+          {title ? (
+            <h1 className="live-present-question-text">{title}</h1>
+          ) : (
+            <p className="live-present-empty live-present-empty--hero">
+              Waiting for the host to send a question…
+            </p>
+          )}
+        </div>
+      )}
 
       {getReadyReveal && isLiveQuestion && !isTimedOut && (
         <div className="live-present-get-ready-wrap">
@@ -311,7 +315,11 @@ export default function LivePresentPage() {
       )}
 
       <div
-        className={`live-present-columns ${getReadyReveal ? 'live-present-columns--dimmed' : ''}`}
+        className={`live-present-columns ${
+          getReadyReveal || (isTimedOut && autoSendCountdown)
+            ? 'live-present-columns--dimmed'
+            : ''
+        }`}
       >
         <aside className="live-present-col live-present-col--feed" aria-labelledby="feed-heading">
           <h2 id="feed-heading" className="live-present-panel-title">

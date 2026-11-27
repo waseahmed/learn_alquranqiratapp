@@ -577,6 +577,26 @@ export default function LiveAdminPage() {
     setSubTab(defaultSubTab(next))
   }
 
+  const autoQuizMode = Boolean(activeGroup?.auto_send_questions)
+  const quizWaitingToStart = useMemo(() => {
+    if (!autoQuizMode || sendableQuestions.length === 0) return false
+    if (suppressSendTicks) return true
+    return sentQuestionNums.size === 0
+  }, [autoQuizMode, sendableQuestions.length, sentQuestionNums, suppressSendTicks])
+
+  const quizInProgress = useMemo(() => {
+    if (!autoQuizMode || sendableQuestions.length === 0) return false
+    if (quizWaitingToStart) return false
+    const sentInGroup = sendableQuestions.filter((q) => sentQuestionNums.has(q.number)).length
+    return sentInGroup > 0 && sentInGroup < sendableQuestions.length
+  }, [autoQuizMode, sendableQuestions, sentQuestionNums, quizWaitingToStart])
+
+  async function startAutoQuiz() {
+    const first = sendableQuestions[0]
+    if (!first) return
+    await sendQuestion(first.number)
+  }
+
   const sectionSubTabs =
     section === 'host'
       ? HOST_SUBTABS
@@ -588,6 +608,40 @@ export default function LiveAdminPage() {
 
   const questionSendList = (
     <div className="live-admin-questions" key={`send-rows-${sendRowsRevision}`}>
+      {autoQuizMode && sendableQuestions.length > 0 && (
+        <div className="live-admin-auto-quiz-bar">
+          {quizWaitingToStart ? (
+            <>
+              <button
+                type="button"
+                className="btn primary live-start-quiz-btn"
+                onClick={startAutoQuiz}
+                disabled={busy || !supabaseConfigured || !pinUnlocked}
+              >
+                Start quiz
+              </button>
+              <p className="live-muted">
+                {sendableQuestions.length} questions · auto-advance every{' '}
+                {activeGroup?.auto_send_gap_seconds || 5}s · opens presentation results after the
+                last question
+              </p>
+            </>
+          ) : quizInProgress ? (
+            <p className="live-admin-quiz-status" role="status">
+              Quiz running —{' '}
+              <strong>
+                {sendableQuestions.filter((q) => sentQuestionNums.has(q.number)).length}
+              </strong>{' '}
+              of <strong>{sendableQuestions.length}</strong> questions done · next sends automatically
+            </p>
+          ) : (
+            <p className="live-admin-quiz-status" role="status">
+              All questions in this run were sent. Use <strong>Group results</strong> or start a
+              fresh session if needed.
+            </p>
+          )}
+        </div>
+      )}
       {sendableQuestions.length === 0 ? (
         <p className="live-muted live-admin-empty">
           No questions in this group yet. Add them under Session setup → Questions.
@@ -623,14 +677,21 @@ export default function LiveAdminPage() {
                     ✓
                   </span>
                 )}
-                <button
-                  type="button"
-                  className={`btn ${isLive ? 'primary' : 'ghost'} live-send-question-btn`}
-                  onClick={() => sendQuestion(q.number)}
-                  disabled={busy || !supabaseConfigured}
-                >
-                  {isLive ? 'Live' : 'Send'}
-                </button>
+                {isLive && (
+                  <span className="live-admin-live-pill" aria-label="On air">
+                    Live
+                  </span>
+                )}
+                {!autoQuizMode && (
+                  <button
+                    type="button"
+                    className={`btn ${isLive ? 'primary' : 'ghost'} live-send-question-btn`}
+                    onClick={() => sendQuestion(q.number)}
+                    disabled={busy || !supabaseConfigured}
+                  >
+                    {isLive ? 'Live' : 'Send'}
+                  </button>
+                )}
               </div>
             </div>
           )
