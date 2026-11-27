@@ -765,18 +765,6 @@ export default function ShadowPracticePage() {
       />
 
       <header className="shadow-practice-header">
-        <button
-          type="button"
-          className="shadow-practice-header-logo"
-          onClick={() => navigate('/practice')}
-          aria-label="Go to practice home"
-        >
-          <img
-            className="shadow-practice-header-logo-img"
-            src={`${import.meta.env.BASE_URL}aqqa-logo.png`}
-            alt=""
-          />
-        </button>
         <button type="button" className="btn ghost shadow-practice-back" onClick={() => navigate('/practice')}>
           ← Back
         </button>
