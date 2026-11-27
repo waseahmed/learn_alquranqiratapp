@@ -283,7 +283,6 @@ function LiveScreen({ participant, groups, onAnswerConfetti, onSessionEnded }) {
         >
           <LiveGroupResultsPanel
             groupName={groupFinale.group_name}
-            questionsTotal={groupFinale.questions_total || sessionProgress?.total}
             places={groupFinale.places || groupFinale.ranking || []}
             myParticipantId={participant.id}
             variant="parent"

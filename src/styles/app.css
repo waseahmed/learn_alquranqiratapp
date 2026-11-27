@@ -4696,15 +4696,20 @@ a.btn.primary {
 
 .live-auto-gap-pulse {
   position: relative;
-  width: 72px;
-  height: 72px;
-  margin: 0 auto 16px;
+  width: 112px;
+  height: 112px;
+  margin: 0 auto 18px;
+}
+
+.live-auto-gap--parent .live-auto-gap-pulse {
+  width: 120px;
+  height: 120px;
 }
 
 .live-auto-gap--present .live-auto-gap-pulse {
-  width: 96px;
-  height: 96px;
-  margin-bottom: 20px;
+  width: 140px;
+  height: 140px;
+  margin-bottom: 22px;
 }
 
 .live-auto-gap-pulse-ring {
@@ -4713,6 +4718,134 @@ a.btn.primary {
   border-radius: 50%;
   border: 3px solid rgba(26, 58, 44, 0.12);
   animation: live-gap-pulse 1.4s ease-out infinite;
+}
+
+.live-auto-gap-pulse-ring::before {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border-radius: 50%;
+  border: 2px dashed rgba(212, 181, 106, 0.45);
+  animation: live-gap-spin 8s linear infinite;
+}
+
+@keyframes live-gap-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.live-auto-gap-orbit {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  border-radius: 50%;
+  background: #fff;
+  border: 1px solid #d4b56a;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  animation: live-auto-gap-orbit 2.2s linear infinite;
+}
+
+.live-auto-gap--present .live-auto-gap-orbit {
+  width: 26px;
+  height: 26px;
+  margin: -13px 0 0 -13px;
+  font-size: 14px;
+}
+
+.live-auto-gap-orbit--1 {
+  animation-delay: 0s;
+}
+.live-auto-gap-orbit--2 {
+  animation-delay: -0.73s;
+}
+.live-auto-gap-orbit--3 {
+  animation-delay: -1.46s;
+}
+
+@keyframes live-auto-gap-orbit {
+  from {
+    transform: rotate(0deg) translateX(38px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(38px) rotate(-360deg);
+  }
+}
+
+.live-auto-gap--present .live-auto-gap-orbit--1,
+.live-auto-gap--present .live-auto-gap-orbit--2,
+.live-auto-gap--present .live-auto-gap-orbit--3 {
+  animation-name: live-auto-gap-orbit-lg;
+}
+
+@keyframes live-auto-gap-orbit-lg {
+  from {
+    transform: rotate(0deg) translateX(48px) rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg) translateX(48px) rotate(-360deg);
+  }
+}
+
+.live-auto-gap-pulse-core {
+  position: absolute;
+  inset: 22%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  background: linear-gradient(145deg, var(--green), #2d6b52);
+  box-shadow: 0 6px 18px rgba(26, 58, 44, 0.22);
+  animation: live-gap-core-pop 0.35s ease-out;
+}
+
+.live-auto-gap--present .live-auto-gap-pulse-core {
+  font-size: 40px;
+}
+
+.live-auto-gap-core-dots {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  justify-content: center;
+}
+
+.live-auto-gap-core-dots span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  animation: live-get-ready-dot 0.9s ease-in-out infinite;
+}
+
+.live-auto-gap-core-dots span:nth-child(2) {
+  animation-delay: 0.12s;
+}
+.live-auto-gap-core-dots span:nth-child(3) {
+  animation-delay: 0.24s;
+}
+
+@keyframes live-gap-core-pop {
+  from {
+    transform: scale(0.92);
+    opacity: 0.7;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes live-gap-pulse {

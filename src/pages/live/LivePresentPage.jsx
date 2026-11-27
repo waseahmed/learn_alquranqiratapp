@@ -217,7 +217,6 @@ export default function LivePresentPage() {
           {autoSendEnabled ? (
             <LiveGroupResultsPanel
               groupName={groupFinale.group_name}
-              questionsTotal={groupFinale.questions_total || sessionProgress?.total}
               places={finalePlaces}
               variant="present"
               autoQuiz

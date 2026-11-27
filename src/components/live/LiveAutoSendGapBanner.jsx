@@ -21,15 +21,23 @@ export default function LiveAutoSendGapBanner({
       >
         <div className="live-auto-gap-pulse" aria-hidden>
           <span className="live-auto-gap-pulse-ring" />
+          <span className="live-auto-gap-orbit live-auto-gap-orbit--1">?</span>
+          <span className="live-auto-gap-orbit live-auto-gap-orbit--2">⚡</span>
+          <span className="live-auto-gap-orbit live-auto-gap-orbit--3">✦</span>
+          <span className="live-auto-gap-pulse-core" key={loading ? 'load' : seconds}>
+            {loading ? (
+              <span className="live-auto-gap-core-dots">
+                <span />
+                <span />
+                <span />
+              </span>
+            ) : (
+              seconds
+            )}
+          </span>
         </div>
         <p className="live-auto-gap-label live-auto-gap-label--transition">{label}</p>
-        {!loading && seconds > 0 ? (
-          <p className="live-auto-gap-num live-auto-gap-num--transition" key={seconds}>
-            {seconds}
-          </p>
-        ) : (
-          <p className="live-auto-gap-sublabel">{loadingLabel}</p>
-        )}
+        {loading ? <p className="live-auto-gap-sublabel">{loadingLabel}</p> : null}
       </div>
     )
   }
